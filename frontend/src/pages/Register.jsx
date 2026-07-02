@@ -34,7 +34,7 @@ export default function Register() {
       setEmailError('Enter your college email')
       return
     }
-    if (!email.endsWith('@nitkkr.ac.in')) && (!email.endWith('@gmail.com')) {
+    if ((!email.endsWith('@nitkkr.ac.in')) && (!email.endWith('@gmail.com'))) {
       setEmailError('Only @nitkkr.ac.in & @gmail.com emails are allowed')
       return
     }
