@@ -1,0 +1,57 @@
+# Node.js
+node_modules/
+**/node_modules/
+.pnp
+.pnp.js
+
+# Environment
+.env
+.env.*.local
+*.local
+local.properties
+ride_sharing_mobile/local.properties
+
+# Build outputs
+build/
+dist/
+out/
+**/build/
+**/dist/
+**/out/
+
+# Prisma
+**/.prisma/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.iml
+
+# Android / Gradle
+.gradle/
+**/.gradle/
+**/captures/
+**/externalNativeBuild/
+**/.cxx/
+
+# Testing
+coverage/
+.nyc_output/
+
+# Misc
+.cache/
