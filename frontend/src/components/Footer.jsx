@@ -12,11 +12,11 @@ export default function Footer() {
             <p className="text-gray-300 text-sm">Haryana - 136119</p>
             <p className="text-gray-300 text-sm mt-3">
               Email:{' '}
-              <a href="mailto:nccunit@nitkkr.ac.in" className="hover:text-primary transition-colors">
-                nccunit@nitkkr.ac.in
+              <a href="mailto:lab.942004@gmail.com" className="hover:text-primary transition-colors">
+                lab.942004@gmail.com
               </a>
             </p>
-            <p className="text-gray-300 text-sm mt-1">Phone: +91 9876543210</p>
+            <p className="text-gray-300 text-sm mt-1">Phone: +91 9534623781</p>
           </div>
 
           {/* Quick links */}
@@ -45,7 +45,7 @@ export default function Footer() {
         </div>
 
         <div className="border-t border-gray-500 mt-8 pt-5 text-center text-gray-400 text-xs">
-          © {new Date().getFullYear()} RideShare NIT Kurukshetra. All rights reserved.
+          © {new Date().getFullYear()} CloudOne+. All rights reserved.
         </div>
       </div>
     </footer>

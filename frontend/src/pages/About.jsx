@@ -1,6 +1,6 @@
 export default function About() {
   const features = [
-    { icon: '🔒', title: 'College-only Access', desc: 'Only verified NIT Kurukshetra email holders can join. Your community, your safety.' },
+    { icon: '🔒', title: 'College-only Access', desc: 'Only verified domain email holders can join. Your community, your safety.' },
     { icon: '🚗', title: 'Easy Ride Sharing', desc: 'Post or find rides in seconds. Filter by destination, date, and time.' },
     { icon: '💬', title: 'Real-time Chat', desc: 'Chat with your ride partner after request acceptance — coordinate seamlessly.' },
     { icon: '📱', title: 'Phone Sharing', desc: 'Share phone numbers only after mutual consent for maximum privacy.' },
@@ -17,8 +17,8 @@ export default function About() {
             About <span className="text-primary">RideShare</span>
           </h1>
           <p className="mt-6 text-lg text-muted leading-relaxed font-body">
-            RideShare is a closed-community platform built exclusively for NIT Kurukshetra students
-            and staff. We believe travel is better together — safer, more affordable, and more fun
+            RideShare is a closed-community platform built exclusively for students and staff.
+            We believe travel is better together — safer, more affordable, and more fun
             when you're with people you know.
           </p>
         </div>
@@ -35,21 +35,21 @@ export default function About() {
               costs, carbon footprints, and the anxiety of travelling alone.
             </p>
             <p className="mt-4 text-muted leading-relaxed font-body">
-              Our platform is built on trust — every user is a verified member of the NIT
-              Kurukshetra community, so you always know who you're riding with.
+              Our platform is built on trust — every user is a verified member of the community,
+              so you always know who you're riding with.
             </p>
           </div>
           <div className="bg-amber-50 rounded-3xl p-8 text-center">
             <div className="text-7xl">🎓</div>
-            <p className="font-display text-2xl font-bold mt-4 text-charcoal">NIT Kurukshetra</p>
+            {/* <p className="font-display text-2xl font-bold mt-4 text-charcoal">NIT Kurukshetra</p> */}
             <p className="text-muted mt-2 font-body">Closed Community Platform</p>
             <div className="flex justify-center gap-8 mt-6">
               <div>
-                <p className="font-display text-3xl font-bold text-primary">500+</p>
+                <p className="font-display text-3xl font-bold text-primary">50+</p>
                 <p className="text-xs text-muted mt-1">Active Users</p>
               </div>
               <div>
-                <p className="font-display text-3xl font-bold text-primary">200+</p>
+                <p className="font-display text-3xl font-bold text-primary">100+</p>
                 <p className="text-xs text-muted mt-1">Rides Created</p>
               </div>
               <div>
