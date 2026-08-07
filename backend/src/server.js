@@ -32,10 +32,19 @@ app.set('trust proxy', 1);
 
 const server = http.createServer(app);
 
+// ─── CORS origins ─────────────────────────────────────────────────────────────
+// Combine FRONTEND_URL (student app) and ADMIN_PANEL_URL (admin panel) into
+// a single comma-separated list of allowed origins. Both are required in
+// production — cookies (used for refresh tokens) are strictly origin-scoped.
+const allowedOrigins = [
+  ...(process.env.FRONTEND_URL || 'http://localhost:5173').split(','),
+  ...(process.env.ADMIN_PANEL_URL || 'http://localhost:5174').split(','),
+].map((o) => o.trim()).filter(Boolean);
+
 // ─── Socket.io ────────────────────────────────────────────────────────────────
 const io = new Server(server, {
   cors: {
-    origin     : (process.env.FRONTEND_URL || 'http://localhost:5173').split(','),
+    origin     : allowedOrigins,
     methods    : ['GET', 'POST'],
     credentials: true,
   },
@@ -58,7 +67,7 @@ app.use(helmet({
   },
 }));
 app.use(cors({
-  origin     : (process.env.FRONTEND_URL || 'http://localhost:5173').split(','),
+  origin     : allowedOrigins,
   credentials: true,
   methods    : ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
