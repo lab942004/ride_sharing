@@ -8,6 +8,50 @@ datasource db {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────────────────────────────────────
+enum RequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum AdminStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum NotificationType {
+  GLOBAL
+  DOMAIN
+  SCHEDULED
+}
+
+enum NotificationStatus {
+  ACTIVE
+  INACTIVE
+  SCHEDULED
+}
+
+enum ReportType {
+  USER
+  RIDE
+  CHAT
+}
+
+enum ReportStatus {
+  PENDING
+  RESOLVED
+  CLOSED
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // USER
 // ─────────────────────────────────────────────────────────────────────────────
 model User {
@@ -19,7 +63,11 @@ model User {
   phone      String?
   profilePic String?
   domain     String
+  role       UserRole @default(USER)
   isVerified Boolean  @default(false)
+  isBanned   Boolean  @default(false)
+  isSuspended Boolean @default(false)
+  isMuted    Boolean  @default(false)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -28,10 +76,246 @@ model User {
   receivedRequests Request[]      @relation("RideOwnerRequests")
   messages         Message[]
   refreshTokens    RefreshToken[]
+  reports          Report[]       @relation("ReportedUser")
+  notifications    UserNotification[]
+  pushSubscriptions PushSubscription[]
 
   @@index([domain])
   @@index([email])
+  @@index([role])
   @@map("users")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADMIN
+// ─────────────────────────────────────────────────────────────────────────────
+model Admin {
+  id           String      @id @default(uuid())
+  name         String
+  email        String      @unique
+  password     String
+  phone        String?
+  profilePic   String?
+  role         UserRole    @default(ADMIN)
+  status       AdminStatus @default(ACTIVE)
+  domain       String?
+  createdById  String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  refreshTokens AdminRefreshToken[]
+
+  @@index([email])
+  @@index([domain])
+  @@index([role])
+  @@map("admins")
+}
+
+model AdminRefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  adminId   String
+  admin     Admin    @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  isRevoked Boolean  @default(false)
+
+  @@index([adminId])
+  @@index([token])
+  @@map("admin_refresh_tokens")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DOMAIN
+// ─────────────────────────────────────────────────────────────────────────────
+model Domain {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([name])
+  @@map("domains")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ANNOUNCEMENT / NOTIFICATION
+// ─────────────────────────────────────────────────────────────────────────────
+model Announcement {
+  id          String             @id @default(uuid())
+  title       String
+  content     String
+  type        NotificationType   @default(GLOBAL)
+  status      NotificationStatus @default(ACTIVE)
+  domain      String?
+  scheduledAt DateTime?
+  createdById String
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([type, status])
+  @@index([domain])
+  @@map("announcements")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// USER NOTIFICATION (for push notifications to specific users)
+// ─────────────────────────────────────────────────────────────────────────────
+model UserNotification {
+  id        String   @id @default(uuid())
+  title     String
+  content   String
+  isRead    Boolean  @default(false)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+  @@map("user_notifications")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REPORT
+// ─────────────────────────────────────────────────────────────────────────────
+model Report {
+  id          String       @id @default(uuid())
+  type        ReportType   @default(USER)
+  reason      String
+  description String?
+  status      ReportStatus @default(PENDING)
+  targetId    String?
+  reportedById String?
+  reportedBy  User?        @relation("ReportedUser", fields: [reportedById], references: [id])
+  resolvedById String?
+  resolvedAt  DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([type, status])
+  @@index([targetId])
+  @@map("reports")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HOME MANAGEMENT - BANNER
+// ─────────────────────────────────────────────────────────────────────────────
+model Banner {
+  id        String   @id @default(uuid())
+  title     String
+  subtitle  String?
+  imageUrl  String
+  linkUrl   String?
+  isActive  Boolean  @default(true)
+  order     Int      @default(0)
+  domain    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, order])
+  @@map("banners")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HOME MANAGEMENT - CAROUSEL
+// ─────────────────────────────────────────────────────────────────────────────
+model CarouselItem {
+  id        String   @id @default(uuid())
+  title     String
+  subtitle  String?
+  imageUrl  String
+  linkUrl   String?
+  isActive  Boolean  @default(true)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, order])
+  @@map("carousel_items")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HOME MANAGEMENT - FEATURED CARD
+// ─────────────────────────────────────────────────────────────────────────────
+model FeaturedCard {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  icon        String?
+  linkUrl     String?
+  isActive    Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive, order])
+  @@map("featured_cards")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STORAGE FILE (for tracking uploaded files)
+// ─────────────────────────────────────────────────────────────────────────────
+model StorageFile {
+  id         String   @id @default(uuid())
+  url        String
+  publicId   String
+  format     String?
+  bytes      Int?
+  width      Int?
+  height     Int?
+  uploadedBy String?
+  createdAt  DateTime @default(now())
+
+  @@index([uploadedBy])
+  @@map("storage_files")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LOGIN ATTEMPT
+// ─────────────────────────────────────────────────────────────────────────────
+model LoginAttempt {
+  id        String   @id @default(uuid())
+  email     String
+  success   Boolean  @default(false)
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
+  @@map("login_attempts")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ACTIVITY LOG
+// ─────────────────────────────────────────────────────────────────────────────
+model ActivityLog {
+  id         String   @id @default(uuid())
+  action     String
+  entity     String?
+  entityId   String?
+  details    Json?
+  adminId    String?
+  adminName  String?
+  adminRole  String?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([adminId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SYSTEM SETTINGS
+// ─────────────────────────────────────────────────────────────────────────────
+model SystemSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -41,12 +325,19 @@ model Ride {
   id             String   @id @default(uuid())
   from           String
   to             String
+  // Coordinates are optional — the ride form uses Mappls autosuggest labels.
+  fromLat        Float?
+  fromLng        Float?
+  toLat          Float?
+  toLng          Float?
   date           DateTime
-  time           String   // HH:MM 24-hr stored as string for easy display
+  time           String
   vehicleType    String
   availableSeats Int
   isFull         Boolean  @default(false)
   isExpired      Boolean  @default(false)
+  isCancelled    Boolean  @default(false)
+  reminderSent   Boolean  @default(false)
   domain         String
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -115,12 +406,14 @@ model Message {
   senderId String
   sender   User   @relation(fields: [senderId], references: [id], onDelete: Cascade)
 
+  isDeleted Boolean @default(false)
+
   @@index([chatId, createdAt])
   @@map("messages")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// OTP  (raw OTP rows — deleted on verify)
+// OTP
 // ─────────────────────────────────────────────────────────────────────────────
 model OTP {
   id        String   @id @default(uuid())
@@ -134,21 +427,20 @@ model OTP {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// VERIFIED EMAIL  (proof that this email passed OTP — deleted after register)
-// Prevents registration without OTP verification.
+// VERIFIED EMAIL
 // ─────────────────────────────────────────────────────────────────────────────
 model VerifiedEmail {
   id         String   @id @default(uuid())
   email      String   @unique
   verifiedAt DateTime @default(now())
-  expiresAt  DateTime // 30-minute window to complete registration
+  expiresAt  DateTime
 
   @@index([email])
   @@map("verified_emails")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// REFRESH TOKEN  (server-side revocation support)
+// REFRESH TOKEN
 // ─────────────────────────────────────────────────────────────────────────────
 model RefreshToken {
   id        String   @id @default(uuid())
@@ -164,8 +456,20 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
-enum RequestStatus {
-  PENDING
-  ACCEPTED
-  REJECTED
+// ─────────────────────────────────────────────────────────────────────────────
+// PUSH SUBSCRIPTION (Web Push Notifications)
+// ─────────────────────────────────────────────────────────────────────────────
+model PushSubscription {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint     String   @unique
+  p256dh       String
+  auth         String
+  userAgent    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }

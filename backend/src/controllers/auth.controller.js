@@ -9,6 +9,14 @@ const {
   resetPasswordService,
 } = require('../services/auth.service');
 const { sendSuccess } = require('../utils/response.utils');
+const {
+  USER_COOKIE_NAME, USER_COOKIE_PATH, setRefreshCookie, clearRefreshCookie,
+} = require('../utils/cookie.utils');
+
+// Read the refresh token from the httpOnly cookie first (the secure path);
+// fall back to the request body only for API/non-browser clients that
+// can't hold cookies (e.g. a future mobile app). Never require both.
+const readRefreshToken = (req) => req.cookies?.[USER_COOKIE_NAME] || req.body?.refreshToken;
 
 const sendOTP = async (req, res, next) => {
   try {
@@ -31,27 +39,37 @@ const register = async (req, res, next) => {
       profilePicFile: req.file,
     };
     const result = await registerService(registerPayload);
-    sendSuccess(res, 201, 'Account created successfully', result);
+    setRefreshCookie(res, USER_COOKIE_NAME, result.refreshToken, result.refreshExpiresAt, USER_COOKIE_PATH);
+    const { refreshToken: _rt, refreshExpiresAt: _exp, ...body } = result;
+    sendSuccess(res, 201, 'Account created successfully', body);
   } catch (e) { next(e); }
 };
 
 const login = async (req, res, next) => {
   try {
     const result = await loginService(req.body.email, req.body.password);
-    sendSuccess(res, 200, 'Login successful', result);
+    setRefreshCookie(res, USER_COOKIE_NAME, result.refreshToken, result.refreshExpiresAt, USER_COOKIE_PATH);
+    const { refreshToken: _rt, refreshExpiresAt: _exp, ...body } = result;
+    sendSuccess(res, 200, 'Login successful', body);
   } catch (e) { next(e); }
 };
 
 const refreshToken = async (req, res, next) => {
   try {
-    const tokens = await refreshTokenService(req.body.refreshToken);
-    sendSuccess(res, 200, 'Token refreshed successfully', tokens);
+    const token = readRefreshToken(req);
+    if (!token) return next(Object.assign(new Error('No refresh token provided'), { statusCode: 401 }));
+
+    const tokens = await refreshTokenService(token);
+    setRefreshCookie(res, USER_COOKIE_NAME, tokens.refreshToken, tokens.refreshExpiresAt, USER_COOKIE_PATH);
+    sendSuccess(res, 200, 'Token refreshed successfully', { accessToken: tokens.accessToken });
   } catch (e) { next(e); }
 };
 
 const logout = async (req, res, next) => {
   try {
-    const result = await logoutService(req.body.refreshToken);
+    const token = readRefreshToken(req);
+    const result = await logoutService(token);
+    clearRefreshCookie(res, USER_COOKIE_NAME, USER_COOKIE_PATH);
     sendSuccess(res, 200, result.message);
   } catch (e) { next(e); }
 };

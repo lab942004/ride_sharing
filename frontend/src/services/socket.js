@@ -29,11 +29,12 @@
 
 
 import { io } from 'socket.io-client'
+import { getAccessToken } from './tokenStore'
 
 let socket = null
 
 export function getSocket() {
-  const token = localStorage.getItem('accessToken')
+  const token = getAccessToken()
 
   // reuse existing connected socket
   if (socket && socket.connected) {

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { profileAPI, ridesAPI, requestsAPI } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 import { format } from 'date-fns'
 
 function MyRideCard({ ride, onDelete }) {

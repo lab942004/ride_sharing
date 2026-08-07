@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router'
 import { authAPI } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
@@ -76,8 +76,8 @@ export default function Login() {
       setLoading(true)
       const res = await authAPI.login(form.email, form.password)
       const d = res.data.data || res.data
-      const { user, accessToken, refreshToken } = d
-      login(user, accessToken, refreshToken)
+      const { user, accessToken } = d
+      login(user, accessToken)
       toast.success(`Welcome back, ${user.name}!`)
       navigate(from, { replace: true })
     } catch (err) {

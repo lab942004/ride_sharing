@@ -9,11 +9,13 @@ const { VEHICLE_TYPES, MAX_RIDE_DAYS_AHEAD } = require('../config/constants');
  *  - date must not be more than MAX_RIDE_DAYS_AHEAD days ahead
  *  - time must be HH:MM 24-hour format
  *  - seats must be 1–10
+ *  - from/to must be picked from the autosuggest dropdown (not free text)
+ *  - pickup and destination must not be the same place name
  */
 const createRideSchema = z
   .object({
-    from          : z.string({ required_error: 'Pickup location is required' }).min(2).max(100).trim(),
-    to            : z.string({ required_error: 'Destination is required' }).min(2).max(100).trim(),
+    from          : z.string({ required_error: 'Pickup location is required' }).min(2).max(200).trim(),
+    to            : z.string({ required_error: 'Destination is required' }).min(2).max(200).trim(),
     date          : z
       .string({ required_error: 'Date is required' })
       .refine((val) => !isNaN(Date.parse(val)), { message: 'Invalid date format. Use YYYY-MM-DD' }),
@@ -53,6 +55,15 @@ const createRideSchema = z
         code   : z.ZodIssueCode.custom,
         path   : ['date'],
         message: `Ride can only be scheduled up to ${MAX_RIDE_DAYS_AHEAD} days in advance`,
+      });
+    }
+
+    // Reject rides where pickup and destination are the same place name.
+    if (data.from.trim().toLowerCase() === data.to.trim().toLowerCase()) {
+      ctx.addIssue({
+        code   : z.ZodIssueCode.custom,
+        path   : ['to'],
+        message: 'Pickup and destination cannot be the same place',
       });
     }
   });

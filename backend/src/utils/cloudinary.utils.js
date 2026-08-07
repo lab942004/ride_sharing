@@ -26,9 +26,42 @@ const buildPublicId = (originalName) => {
   return `${Date.now()}-${Math.round(Math.random() * 1e9)}-${name}`.slice(0, 80);
 };
 
+/**
+ * SECURITY: multer's fileFilter only sees the client-supplied `Content-Type`
+ * header for the part, which is fully attacker-controlled — renaming a
+ * malicious file to declare `Content-Type: image/png` bypasses it trivially.
+ * This checks the actual file *signature* (magic bytes) of the uploaded
+ * buffer against known image formats, so what we send to Cloudinary is
+ * verified to genuinely be an image regardless of what the client claimed.
+ */
+const IMAGE_SIGNATURES = [
+  { format: 'jpeg', bytes: [0xff, 0xd8, 0xff] },
+  { format: 'png',  bytes: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] },
+  { format: 'gif',  bytes: [0x47, 0x49, 0x46, 0x38] },
+  // WEBP: 'RIFF' .... 'WEBP' — check both anchors
+  { format: 'webp', bytes: [0x52, 0x49, 0x46, 0x46], offset: 0, extra: { bytes: [0x57, 0x45, 0x42, 0x50], offset: 8 } },
+];
+
+const isValidImageSignature = (buffer) => {
+  if (!buffer || buffer.length < 12) return false;
+
+  return IMAGE_SIGNATURES.some(({ bytes, offset = 0, extra }) => {
+    const primaryMatch = bytes.every((b, i) => buffer[offset + i] === b);
+    if (!primaryMatch) return false;
+    if (!extra) return true;
+    return extra.bytes.every((b, i) => buffer[extra.offset + i] === b);
+  });
+};
+
 const uploadImage = async (file, folder = 'ride-share/profile-pics') => {
   if (!file || !file.buffer) {
     throw new Error('No file buffer available for Cloudinary upload');
+  }
+
+  if (!isValidImageSignature(file.buffer)) {
+    const err = new Error('The uploaded file is not a valid image (jpg, png, gif, or webp).');
+    err.statusCode = 400;
+    throw err;
   }
 
   return new Promise((resolve, reject) => {
@@ -50,4 +83,4 @@ const uploadImage = async (file, folder = 'ride-share/profile-pics') => {
   });
 };
 
-module.exports = { uploadImage };
+module.exports = { uploadImage, isValidImageSignature };

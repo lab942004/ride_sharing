@@ -1,6 +1,7 @@
 const { verifyAccessToken } = require('../utils/jwt.utils');
 const { SOCKET_EVENTS }     = require('../config/constants');
 const prisma                = require('../config/db');
+const { sendPushToUser }    = require('../services/push.service');
 
 /**
  * Socket.io server initializer.
@@ -21,7 +22,7 @@ const initSocket = (io) => {
 
       if (!token) return next(new Error('Authentication token required'));
 
-      const decoded = verifyAccessToken(token);
+      const decoded = verifyAccessToken(token, 'user');
       const user    = await prisma.user.findUnique({
         where : { id: decoded.id },
         select: { id: true, name: true, rollNo: true, isVerified: true },
@@ -114,6 +115,18 @@ const initSocket = (io) => {
 
         // Emit to all in the chat room (including sender for confirmation)
         io.to(`chat_${requestId}`).emit(SOCKET_EVENTS.NEW_MESSAGE, message);
+
+        // ── Web push notification to the other participant (non-blocking) ─────
+        const recipientId =
+          request.requesterId === socket.user.id
+            ? request.rideCreatorId
+            : request.requesterId;
+
+        sendPushToUser(recipientId, {
+          title: `New message from ${socket.user.name}`,
+          body : text.trim().slice(0, 120),
+          url  : '/#/chat',
+        }).catch((err) => console.error('Push notification failed:', err.message));
       } catch (err) {
         console.error('[Socket] send_message error:', err.message);
         socket.emit(SOCKET_EVENTS.ERROR, { message: 'Failed to send message' });
@@ -121,14 +134,22 @@ const initSocket = (io) => {
     });
 
     // ── typing indicators ─────────────────────────────────────────────────────
+    // SECURITY: only broadcast if this socket has actually joined the room via
+    // the participant-checked `join_chat` handler above — otherwise any
+    // authenticated user who merely knows/guesses a requestId could spoof a
+    // typing indicator into a chat they're not part of.
     socket.on(SOCKET_EVENTS.TYPING, ({ requestId }) => {
-      socket.to(`chat_${requestId}`).emit(SOCKET_EVENTS.USER_TYPING, {
+      const room = `chat_${requestId}`;
+      if (!socket.rooms.has(room)) return;
+      socket.to(room).emit(SOCKET_EVENTS.USER_TYPING, {
         user: { id: socket.user.id, name: socket.user.name },
       });
     });
 
     socket.on(SOCKET_EVENTS.STOP_TYPING, ({ requestId }) => {
-      socket.to(`chat_${requestId}`).emit(SOCKET_EVENTS.USER_STOP_TYPING, {
+      const room = `chat_${requestId}`;
+      if (!socket.rooms.has(room)) return;
+      socket.to(room).emit(SOCKET_EVENTS.USER_STOP_TYPING, {
         userId: socket.user.id,
       });
     });

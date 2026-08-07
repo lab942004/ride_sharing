@@ -18,9 +18,8 @@ const appError = (message, statusCode = 400) =>
  * `purpose` is shown in the email subject ('email verification' | 'password reset').
  */
 const sendOTPService = async (email, name, purpose = 'email verification') => {
-  if (!isAllowedDomain(email)) {
-    const allowed = process.env.ALLOWED_DOMAINS || 'nitkkr.ac.in';
-    throw appError(`Only @${allowed} email addresses are allowed`, 400);
+  if (!(await isAllowedDomain(email))) {
+    throw appError('This email domain is not allowed to register. Please use your college email address.', 400);
   }
 
   const existingUser = await prisma.user.findUnique({ where: { email } });
@@ -81,8 +80,11 @@ const verifyOTPService = async (email, otp) => {
  * This prevents anyone calling /register without first going through /verify-otp.
  */
 const registerService = async ({ name, rollNo, email, phone, password, profilePicFile }) => {
-  if (!isAllowedDomain(email)) {
-    throw appError('Only college email addresses are allowed', 400);
+  // Re-check the domain here too (not just at send-otp time) — a domain may
+  // have been deactivated by an admin in between OTP verification and
+  // registration completing.
+  if (!(await isAllowedDomain(email))) {
+    throw appError('This email domain is no longer allowed to register.', 400);
   }
 
   // ── Proof-of-OTP check ─────────────────────────────────────────────────────
@@ -143,7 +145,7 @@ const registerService = async ({ name, rollNo, email, phone, password, profilePi
     return { user: newUser, tokens };
   });
 
-  return { user, accessToken: tokens.accessToken, refreshToken: tokens.refreshToken };
+  return { user, accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, refreshExpiresAt: tokens.refreshExpiresAt };
 };
 
 // ─── Login ────────────────────────────────────────────────────────────────────
@@ -171,7 +173,7 @@ const loginService = async (email, password) => {
     profilePic: user.profilePic || null,
     domain    : user.domain,
   };
-  return { user: safeUser, accessToken: tokens.accessToken, refreshToken: tokens.refreshToken };
+  return { user: safeUser, accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, refreshExpiresAt: tokens.refreshExpiresAt };
 };
 
 // ─── Refresh Token ────────────────────────────────────────────────────────────
@@ -206,12 +208,17 @@ const refreshTokenService = async (refreshToken) => {
     }),
   ]);
 
-  return { accessToken: newTokens.accessToken, refreshToken: newTokens.refreshToken };
+  return { accessToken: newTokens.accessToken, refreshToken: newTokens.refreshToken, refreshExpiresAt: newTokens.refreshExpiresAt };
 };
 
 // ─── Logout ───────────────────────────────────────────────────────────────────
 const logoutService = async (refreshToken) => {
-  // Silently succeed even if token doesn't exist (idempotent)
+  // IMPORTANT: guard against `refreshToken` being undefined — passing
+  // `{ where: { token: undefined } }` to Prisma is treated as "no filter"
+  // and would revoke EVERY user's refresh tokens. Silently succeed
+  // (idempotent) if there's nothing to revoke.
+  if (!refreshToken) return { message: 'Logged out successfully' };
+
   await prisma.refreshToken.updateMany({
     where: { token: refreshToken },
     data : { isRevoked: true },

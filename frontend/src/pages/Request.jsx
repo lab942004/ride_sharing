@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { requestsAPI, chatAPI } from '../services/api'
 import { useToast } from '../context/ToastContext'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 import { format } from 'date-fns'
 
 function RequestCard({ request, onAccept, onReject, viewType }) {

@@ -152,22 +152,18 @@ const sendEmail = async ({ to, subject, html }) => {
 
       const data = await response.json();
 
-      if (!response.ok) {
-        console.error('❌ Brevo API failed:', data);
+      if (response.ok) {
+        console.log('✅ Brevo API email sent:', data.messageId);
         return {
-          success: false,
+          success: true,
           provider: 'brevo-api',
-          error: data.message || 'Brevo API failed',
+          id: data.messageId,
         };
       }
 
-      console.log('✅ Brevo API email sent:', data.messageId);
-
-      return {
-        success: true,
-        provider: 'brevo-api',
-        id: data.messageId,
-      };
+      console.error('❌ Brevo API failed:', data);
+      console.log('⚠️  Falling back to SMTP...');
+      // Fall through to SMTP fallback
     } catch (err) {
       console.error('❌ Brevo API error:', err.message);
     }
@@ -219,6 +215,23 @@ module.exports = {
 
 
 // ─── HTML Templates ────────────────────────────────────────────────────────────
+/**
+ * HTML-escape user-controlled data before interpolating it into email
+ * templates below. `name`, `rollNo`, `from`, `to` etc. are all
+ * user-supplied at registration/ride-creation time and are sent, unescaped,
+ * inside emails to OTHER users — without this, a user could register with a
+ * name like `<a href="https://evil.example">RideShare Support</a>` and have
+ * it rendered as a live, styled link inside a legitimate-looking RideShare
+ * email sent to someone else (a phishing vector).
+ */
+const escapeHtml = (value) =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
 const baseStyle = `
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
@@ -246,9 +259,13 @@ const baseStyle = `
   </style>
 `;
 
-const otpTemplate = (name, otp, purpose = 'email verification') => ({
-  subject: '🔐 Your RideShare Verification Code',
-  html   : `<!DOCTYPE html><html><head><meta charset="UTF-8">${baseStyle}</head><body>
+const otpTemplate = (name, otp, purpose = 'email verification') => {
+  const safeName = escapeHtml(name);
+  const safePurpose = escapeHtml(purpose);
+  const safeOtp = escapeHtml(otp); // OTP is server-generated digits, but escape defensively regardless
+  return {
+    subject: '🔐 Your RideShare Verification Code',
+    html   : `<!DOCTYPE html><html><head><meta charset="UTF-8">${baseStyle}</head><body>
     <div class="wrapper">
       <div class="card">
         <div class="header">
@@ -256,10 +273,10 @@ const otpTemplate = (name, otp, purpose = 'email verification') => ({
           <p>Campus Ride-Sharing Platform</p>
         </div>
         <div class="body">
-          <h2>Hello, ${name}! 👋</h2>
-          <p>Use the OTP below for <strong>${purpose}</strong>. It expires in <strong>5 minutes</strong>.</p>
+          <h2>Hello, ${safeName}! 👋</h2>
+          <p>Use the OTP below for <strong>${safePurpose}</strong>. It expires in <strong>5 minutes</strong>.</p>
           <div class="otp-box">
-            <div class="otp-code">${otp}</div>
+            <div class="otp-code">${safeOtp}</div>
             <p class="otp-note">⏱ Valid for 5 minutes · Do not share this code</p>
           </div>
           <div class="divider"></div>
@@ -269,11 +286,19 @@ const otpTemplate = (name, otp, purpose = 'email verification') => ({
       </div>
     </div>
   </body></html>`,
-});
+  };
+};
 
-const rideRequestTemplate = (creatorName, requesterName, requesterRollNo, ride) => ({
-  subject: `🚗 New Ride Request from ${requesterName} (${requesterRollNo})`,
-  html   : `<!DOCTYPE html><html><head><meta charset="UTF-8">${baseStyle}</head><body>
+const rideRequestTemplate = (creatorName, requesterName, requesterRollNo, ride) => {
+  const safeCreatorName   = escapeHtml(creatorName);
+  const safeRequesterName = escapeHtml(requesterName);
+  const safeRollNo        = escapeHtml(requesterRollNo);
+  const safeFrom          = escapeHtml(ride.from);
+  const safeTo            = escapeHtml(ride.to);
+  const safeVehicleType   = escapeHtml(ride.vehicleType);
+  return {
+    subject: `🚗 New Ride Request from ${safeRequesterName} (${safeRollNo})`,
+    html   : `<!DOCTYPE html><html><head><meta charset="UTF-8">${baseStyle}</head><body>
     <div class="wrapper">
       <div class="card">
         <div class="header">
@@ -281,15 +306,15 @@ const rideRequestTemplate = (creatorName, requesterName, requesterRollNo, ride) 
           <p>You have a new ride request!</p>
         </div>
         <div class="body">
-          <h2>Hi ${creatorName},</h2>
-          <p><strong>${requesterName}</strong> (${requesterRollNo}) wants to join your ride.</p>
+          <h2>Hi ${safeCreatorName},</h2>
+          <p><strong>${safeRequesterName}</strong> (${safeRollNo}) wants to join your ride.</p>
           <div class="ride-card">
-            <p>📍 <strong>From:</strong> ${ride.from}</p>
-            <p>🏁 <strong>To:</strong> ${ride.to}</p>
+            <p>📍 <strong>From:</strong> ${safeFrom}</p>
+            <p>🏁 <strong>To:</strong> ${safeTo}</p>
             <p>📅 <strong>Date:</strong> ${new Date(ride.date).toLocaleDateString('en-IN', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}</p>
-            <p>⏰ <strong>Time:</strong> ${ride.time}</p>
-            <p>🚙 <strong>Vehicle:</strong> ${ride.vehicleType}</p>
-            <p>💺 <strong>Seats Available:</strong> ${ride.availableSeats}</p>
+            <p>⏰ <strong>Time:</strong> ${escapeHtml(ride.time)}</p>
+            <p>🚙 <strong>Vehicle:</strong> ${safeVehicleType}</p>
+            <p>💺 <strong>Seats Available:</strong> ${Number(ride.availableSeats) || 0}</p>
           </div>
           <p>Log in to RideShare to <strong>accept</strong> or <strong>reject</strong> this request.</p>
         </div>
@@ -297,10 +322,15 @@ const rideRequestTemplate = (creatorName, requesterName, requesterRollNo, ride) 
       </div>
     </div>
   </body></html>`,
-});
+  };
+};
 
 const requestStatusTemplate = (requesterName, status, ride, creatorName) => {
   const accepted = status === 'ACCEPTED';
+  const safeRequesterName = escapeHtml(requesterName);
+  const safeCreatorName   = escapeHtml(creatorName);
+  const safeFrom          = escapeHtml(ride.from);
+  const safeTo            = escapeHtml(ride.to);
   return {
     subject: `${accepted ? '✅ Ride Request Accepted!' : '❌ Ride Request Rejected'} — RideShare`,
     html   : `<!DOCTYPE html><html><head><meta charset="UTF-8">${baseStyle}</head><body>
@@ -311,18 +341,18 @@ const requestStatusTemplate = (requesterName, status, ride, creatorName) => {
             <p>Request Update</p>
           </div>
           <div class="body">
-            <h2>Hi ${requesterName},</h2>
+            <h2>Hi ${safeRequesterName},</h2>
             <p>Your ride request has been
               <span class="badge ${accepted ? 'badge-green' : 'badge-red'}">
                 ${accepted ? '✅ ACCEPTED' : '❌ REJECTED'}
               </span>
-              by <strong>${creatorName}</strong>.
+              by <strong>${safeCreatorName}</strong>.
             </p>
             <div class="ride-card">
-              <p>📍 <strong>From:</strong> ${ride.from}</p>
-              <p>🏁 <strong>To:</strong> ${ride.to}</p>
+              <p>📍 <strong>From:</strong> ${safeFrom}</p>
+              <p>🏁 <strong>To:</strong> ${safeTo}</p>
               <p>📅 <strong>Date:</strong> ${new Date(ride.date).toLocaleDateString('en-IN', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}</p>
-              <p>⏰ <strong>Time:</strong> ${ride.time}</p>
+              <p>⏰ <strong>Time:</strong> ${escapeHtml(ride.time)}</p>
             </div>
             ${accepted
               ? '<p>🎉 Great news! You can now <strong>chat</strong> with the ride creator and optionally share phone numbers. Log in to RideShare!</p>'

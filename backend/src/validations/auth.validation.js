@@ -109,16 +109,19 @@ const loginSchema = z.object({
 
 /**
  * POST /auth/refresh
+ * The refresh token is normally read from the httpOnly cookie set at
+ * login/register time, so the body field is optional (kept only as a
+ * fallback for non-browser clients).
  */
 const refreshTokenSchema = z.object({
-  refreshToken: z.string({ required_error: 'Refresh token is required' }),
+  refreshToken: z.string().optional(),
 });
 
 /**
  * POST /auth/logout
  */
 const logoutSchema = z.object({
-  refreshToken: z.string({ required_error: 'Refresh token is required' }),
+  refreshToken: z.string().optional(),
 });
 
 /**

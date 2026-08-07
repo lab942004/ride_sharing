@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 import { ridesAPI } from '../services/api'
 import RideCard from '../components/RideCard'
+import AutosuggestInput from '../components/AutosuggestInput'
 import { useAuth } from '../context/AuthContext'
 
 const testimonials = [
@@ -110,19 +111,15 @@ export default function Home() {
           {/* Search bar for logged-in users */}
           {user && (
             <form onSubmit={handleSearch} className="mt-10 flex flex-col sm:flex-row gap-3 max-w-2xl">
-              <input
-                type="text"
+              <AutosuggestInput
                 placeholder="To"
                 value={filter.to}
-                onChange={e => setFilter(p => ({ ...p, to: e.target.value }))}
-                className="px-4 py-3 rounded-lg border border-gray-300 bg-white/90 backdrop-blur flex-1 focus:outline-none focus:ring-2 focus:ring-primary/40 font-body text-sm"
+                onChange={v => setFilter(p => ({ ...p, to: v }))}
               />
-              <input
-                type="text"
+              <AutosuggestInput
                 placeholder="From"
                 value={filter.from}
-                onChange={e => setFilter(p => ({ ...p, from: e.target.value }))}
-                className="px-4 py-3 rounded-lg border border-gray-300 bg-white/90 backdrop-blur flex-1 focus:outline-none focus:ring-2 focus:ring-primary/40 font-body text-sm"
+                onChange={v => setFilter(p => ({ ...p, from: v }))}
               />
               <input
                 type="date"

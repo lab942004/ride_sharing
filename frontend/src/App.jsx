@@ -1,4 +1,4 @@
-import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router'
 import { AuthProvider } from './context/AuthContext'
 import { ToastProvider } from './context/ToastContext'
 import MainLayout from './layouts/MainLayout'

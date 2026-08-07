@@ -1,4 +1,5 @@
 const prisma = require('../config/db');
+const { sendPushToUser } = require('./push.service');
 
 const appError = (msg, code = 400) => Object.assign(new Error(msg), { statusCode: code });
 
@@ -52,10 +53,26 @@ const getMessages = async (requestId, userId, page = 1, limit = 50) => {
 const sendMessage = async (requestId, senderId, text) => {
   const chat = await getChatByRequestId(requestId, senderId);
 
-  return prisma.message.create({
+  const message = await prisma.message.create({
     data   : { chatId: chat.id, senderId, text: text.trim() },
     include: { sender: { select: { id: true, name: true, rollNo: true, profilePic: true } } },
   });
+
+  // ── Web push notification to the other participant (non-blocking) ─────────
+  const request = await prisma.request.findUnique({
+    where  : { id: requestId },
+    select : { requesterId: true, rideCreatorId: true },
+  });
+  const recipientId =
+    request.requesterId === senderId ? request.rideCreatorId : request.requesterId;
+
+  sendPushToUser(recipientId, {
+    title: `New message from ${message.sender.name}`,
+    body : text.trim().slice(0, 120),
+    url  : '/#/chat',
+  }).catch((err) => console.error('Push notification failed:', err.message));
+
+  return message;
 };
 
 // ─── Get Chat Info ────────────────────────────────────────────────────────────

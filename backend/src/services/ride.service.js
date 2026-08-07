@@ -1,6 +1,7 @@
 const prisma = require('../config/db');
 const { MAX_RIDE_DAYS_AHEAD } = require('../config/constants');
 const { getRideDepartureDate, isRideExpired } = require('../utils/rideTime.utils');
+const { sendPushToDomain } = require('./push.service');
 
 const appError = (message, statusCode = 400) =>
   Object.assign(new Error(message), { statusCode });
@@ -11,6 +12,7 @@ const appError = (message, statusCode = 400) =>
  *  1. Combined date + time must be in the future (not just the date).
  *  2. Departure must be within MAX_RIDE_DAYS_AHEAD days from now.
  *  3. Seats > 0 (enforced by Zod schema too, double-checked here).
+ *  4. Pickup and destination must not be the same place name.
  */
 const createRide = async (userId, domain, data) => {
   const { from, to, date, time, vehicleType, availableSeats } = data;
@@ -30,10 +32,24 @@ const createRide = async (userId, domain, data) => {
     throw appError('At least 1 seat must be available', 400);
   }
 
-  return prisma.ride.create({
+  // Reject rides where pickup and destination are the same place name.
+  if (from.trim().toLowerCase() === to.trim().toLowerCase()) {
+    throw appError('Pickup and destination cannot be the same place', 400);
+  }
+
+  const ride = await prisma.ride.create({
     data   : { from, to, date: new Date(date), time, vehicleType, availableSeats, domain, createdById: userId },
     include: { createdBy: { select: { id: true, name: true, rollNo: true, email: true } } },
   });
+
+  // ── Web push notification to everyone in the domain (non-blocking) ────────
+  sendPushToDomain(domain, {
+    title: 'New ride available',
+    body : `A new ride from ${from} to ${to} on ${date} at ${time} (${vehicleType}) has been published`,
+    url  : '/#/',
+  }).catch((err) => console.error('Push notification failed:', err.message));
+
+  return ride;
 };
 
 // ─── Get Rides (with search + filters) ───────────────────────────────────────

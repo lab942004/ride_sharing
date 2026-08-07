@@ -1,6 +1,7 @@
 const cron   = require('node-cron');
 const prisma = require('../config/db');
-const { isRideExpired } = require('../utils/rideTime.utils');
+const { isRideExpired, getRideDepartureDate } = require('../utils/rideTime.utils');
+const { sendPushToUser } = require('../services/push.service');
 
 /**
  * JOB: Mark expired rides
@@ -48,6 +49,74 @@ const markExpiredRides = async () => {
     console.log(`🕐 [Cleanup] Marked ${expiredIds.length} ride(s) as expired and rejected pending requests.`);
   } catch (err) {
     console.error('❌ [Cleanup] markExpiredRides failed:', err.message);
+  }
+};
+
+/**
+ * JOB: Send 15-minute ride departure reminders
+ *
+ * Runs every minute.
+ * Finds rides departing in ~15 minutes that haven't been reminded yet,
+ * and pushes a notification to the ride creator + all ACCEPTED passengers.
+ *
+ * Uses a `reminderSent` flag on the Ride to avoid duplicate sends.
+ */
+const sendRideReminders = async () => {
+  try {
+    const now = new Date();
+    const in15 = new Date(now.getTime() + 15 * 60 * 1000);
+
+    // Rides departing within the next 15 minutes (and not yet reminded)
+    const rides = await prisma.ride.findMany({
+      where: {
+        isExpired: false,
+        reminderSent: false,
+      },
+      include: {
+        createdBy: { select: { id: true, name: true } },
+        requests: {
+          where: { status: 'ACCEPTED' },
+          select: { requesterId: true },
+        },
+      },
+    });
+
+    const due = rides.filter((r) => {
+      const dep = getRideDepartureDate(r.date, r.time);
+      return dep > now && dep <= in15;
+    });
+
+    if (due.length === 0) return;
+
+    for (const ride of due) {
+      const body = `Your ride from ${ride.from} to ${ride.to} departs at ${ride.time}. Be ready!`;
+
+      // Notify the ride creator
+      sendPushToUser(ride.createdById, {
+        title: 'Ride departing in 15 minutes',
+        body,
+        url: '/#/',
+      }).catch((err) => console.error('Push notification failed:', err.message));
+
+      // Notify all accepted passengers
+      for (const req of ride.requests) {
+        sendPushToUser(req.requesterId, {
+          title: 'Ride departing in 15 minutes',
+          body,
+          url: '/#/',
+        }).catch((err) => console.error('Push notification failed:', err.message));
+      }
+
+      // Mark as reminded so we don't re-send
+      await prisma.ride.update({
+        where: { id: ride.id },
+        data : { reminderSent: true },
+      });
+    }
+
+    console.log(`⏰ [Reminder] Sent 15-min reminders for ${due.length} ride(s).`);
+  } catch (err) {
+    console.error('❌ [Reminder] sendRideReminders failed:', err.message);
   }
 };
 
@@ -111,6 +180,9 @@ const purgeOldRefreshTokens = async () => {
  * Call this once from server.js after DB is connected.
  */
 const initCleanupJobs = () => {
+  // Every minute — send 15-minute ride departure reminders
+  cron.schedule('* * * * *', sendRideReminders, { name: 'send-ride-reminders' });
+
   // Every 5 minutes — mark expired rides + reject pending requests
   cron.schedule('*/5 * * * *', markExpiredRides, { name: 'mark-expired-rides' });
 
@@ -126,4 +198,4 @@ const initCleanupJobs = () => {
   console.log('⏰ [Cleanup] Cron jobs registered');
 };
 
-module.exports = { initCleanupJobs, markExpiredRides, purgeExpiredOTPs };
+module.exports = { initCleanupJobs, markExpiredRides, purgeExpiredOTPs, sendRideReminders };

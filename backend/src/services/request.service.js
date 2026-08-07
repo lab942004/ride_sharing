@@ -2,6 +2,7 @@ const prisma = require('../config/db');
 const { sendRideRequestEmail, sendRequestStatusEmail } = require('./email.service');
 const { isRideExpired } = require('../utils/rideTime.utils');
 const { SOCKET_EVENTS } = require('../config/constants');
+const { sendPushToUser } = require('./push.service');
 
 const appError = (msg, code = 400) => Object.assign(new Error(msg), { statusCode: code });
 
@@ -65,6 +66,13 @@ const createRequest = async (requesterId, rideId, io = null) => {
     request.requester.rollNo,
     ride
   ).catch((err) => console.error('Email notification failed:', err.message));
+
+  // ── Web push notification to ride owner (non-blocking) ───────────────────
+  sendPushToUser(ride.createdById, {
+    title: 'New ride request',
+    body : `${request.requester.name} (${request.requester.rollNo}) wants to join your ride from ${ride.from} to ${ride.to}`,
+    url  : '/#/request',
+  }).catch((err) => console.error('Push notification failed:', err.message));
 
   return request;
 };
@@ -160,6 +168,13 @@ const updateRequestStatus = async (requestId, userId, status, io = null) => {
     request.ride,
     request.ride.createdBy.name
   ).catch((err) => console.error('Email notification failed:', err.message));
+
+  // ── Web push notification to requester (non-blocking) ────────────────────
+  sendPushToUser(request.requesterId, {
+    title: `Request ${status.toLowerCase()}`,
+    body : `Your request to join ${request.ride.from} → ${request.ride.to} was ${status.toLowerCase()} by ${request.ride.createdBy.name}`,
+    url  : '/#/request',
+  }).catch((err) => console.error('Push notification failed:', err.message));
 
   return updatedRequest;
 };

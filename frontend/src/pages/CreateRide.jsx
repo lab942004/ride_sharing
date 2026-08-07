@@ -1,12 +1,15 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 import { ridesAPI } from '../services/api'
 import { useToast } from '../context/ToastContext'
+import LocationPicker from '../components/LocationPicker'
 
 export default function CreateRide() {
   const [form, setForm] = useState({
-    from: '', to: '', date: '', time: '', vehicleType: '', availableSeats: ''
+    date: '', time: '', vehicleType: '', availableSeats: ''
   })
+  const [fromLocation, setFromLocation] = useState(null) // { label, lat, lng } | null
+  const [toLocation, setToLocation] = useState(null)
   const [loading, setLoading] = useState(false)
   const toast = useToast()
   const navigate = useNavigate()
@@ -18,7 +21,11 @@ export default function CreateRide() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!form.from || !form.to || !form.date || !form.time || !form.availableSeats) {
+    if (!fromLocation || !toLocation) {
+      toast.error('Please pick both a pickup and destination from the search results — typed text alone isn\'t accepted')
+      return
+    }
+    if (!form.date || !form.time || !form.availableSeats) {
       toast.error('Please fill all required fields')
       return
     }
@@ -28,7 +35,12 @@ export default function CreateRide() {
     }
     try {
       setLoading(true)
-      await ridesAPI.create({ ...form, availableSeats: parseInt(form.availableSeats) })
+      await ridesAPI.create({
+        ...form,
+        from: fromLocation.label,
+        to: toLocation.label,
+        availableSeats: parseInt(form.availableSeats),
+      })
       toast.success('Ride created successfully!')
       navigate('/')
     } catch (err) {
@@ -76,24 +88,20 @@ export default function CreateRide() {
           <div className="max-w-lg bg-white/85 backdrop-blur-sm rounded-2xl shadow-card border border-amber-100 p-8">
             <form onSubmit={handleSubmit} className="space-y-4">
               
-              <input
-                name="from"
-                type="text"
-                placeholder="From"
-                value={form.from}
-                onChange={handleChange}
-                className={inputCls}
-                required
+              <LocationPicker
+                label="Pickup"
+                placeholder="From (search for a location)"
+                value={fromLocation}
+                onChange={setFromLocation}
+                biasLocation={toLocation}
               />
 
-              <input
-                name="to"
-                type="text"
-                placeholder="To"
-                value={form.to}
-                onChange={handleChange}
-                className={inputCls}
-                required
+              <LocationPicker
+                label="Destination"
+                placeholder="To (search for a location)"
+                value={toLocation}
+                onChange={setToLocation}
+                biasLocation={fromLocation}
               />
 
               <input

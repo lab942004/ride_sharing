@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation } from 'react-router'
 import { chatAPI, requestsAPI } from '../services/api'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'

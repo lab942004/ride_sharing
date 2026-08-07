@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react'
+import { setAccessToken, clearAccessToken } from '../services/tokenStore'
 
 const AuthContext = createContext(null)
 
@@ -6,38 +7,52 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
+  // On app start there is no access token in memory (it never survives a
+  // reload by design). Try a silent refresh using the httpOnly cookie; if
+  // it succeeds, fetch the current user to restore the session.
   useEffect(() => {
-    const stored = localStorage.getItem('user')
-    const token = localStorage.getItem('accessToken')
-    if (stored && token) {
-      try { setUser(JSON.parse(stored)) } catch {}
+    let cancelled = false
+
+    const restoreSession = async () => {
+      try {
+        const { authAPI } = await import('../services/api')
+        const refreshRes = await authAPI.refresh()
+        const accessToken = refreshRes.data.data?.accessToken || refreshRes.data.accessToken
+        if (!accessToken) throw new Error('No access token returned')
+        setAccessToken(accessToken)
+
+        const meRes = await authAPI.getMe()
+        const me = meRes.data.data?.user || meRes.data.data || meRes.data.user
+        if (!cancelled) setUser(me)
+      } catch {
+        clearAccessToken()
+        if (!cancelled) setUser(null)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
     }
-    setLoading(false)
+
+    restoreSession()
+    return () => { cancelled = true }
   }, [])
 
-  const login = (userData, accessToken, refreshToken) => {
-    localStorage.setItem('accessToken', accessToken)
-    localStorage.setItem('refreshToken', refreshToken)
-    localStorage.setItem('user', JSON.stringify(userData))
+  // accessToken is kept in memory only (tokenStore) — the refresh token is
+  // an httpOnly cookie the browser manages; neither ever goes in localStorage.
+  const login = (userData, accessToken) => {
+    setAccessToken(accessToken)
     setUser(userData)
   }
 
   const logout = async () => {
     try {
-      const refresh = localStorage.getItem('refreshToken')
-      if (refresh) {
-        const { authAPI } = await import('../services/api')
-        await authAPI.logout(refresh).catch(() => {})
-      }
+      const { authAPI } = await import('../services/api')
+      await authAPI.logout().catch(() => {})
     } catch {}
-    localStorage.removeItem('accessToken')
-    localStorage.removeItem('refreshToken')
-    localStorage.removeItem('user')
+    clearAccessToken()
     setUser(null)
   }
 
   const updateUser = (userData) => {
-    localStorage.setItem('user', JSON.stringify(userData))
     setUser(userData)
   }
 

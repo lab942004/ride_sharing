@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { authAPI } from '../services/api'
+import { Link, useNavigate } from 'react-router'
+import { authAPI, domainsAPI } from '../services/api'
 import { useToast } from '../context/ToastContext'
 import { AuthLayout } from './Login'
 
@@ -21,8 +21,19 @@ export default function Register() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [emailError, setEmailError] = useState('')
+  const [allowedDomains, setAllowedDomains] = useState(null) // null = not loaded yet
   const toast = useToast()
   const navigate = useNavigate()
+
+  // Allowed domains are managed by the Super Admin in the admin panel and
+  // enforced authoritatively server-side on every send-otp/register call.
+  // This fetch is purely for a helpful, accurate client-side hint — it is
+  // NOT the security boundary.
+  useEffect(() => {
+    domainsAPI.getAllowed()
+      .then(res => setAllowedDomains(res.data.data?.domains || []))
+      .catch(() => setAllowedDomains([])) // fail open on the hint only; server still enforces
+  }, [])
 
   const handleChange = e => setForm(p => ({ ...p, [e.target.name]: e.target.value }))
 
@@ -36,8 +47,11 @@ export default function Register() {
     }
     const normalizedEmail = email.trim().toLowerCase()
     const domain = normalizedEmail.split('@')[1]
-    if (!domain || !['nitkkr.ac.in', 'gmail.com'].includes(domain)) {
-      setEmailError('Only @nitkkr.ac.in & @gmail.com emails are allowed')
+    // Only block client-side if we actually have a loaded, non-empty domain
+    // list — otherwise let the request go through and let the server (the
+    // real authority) validate it.
+    if (allowedDomains?.length && (!domain || !allowedDomains.includes(domain))) {
+      setEmailError(`Only ${allowedDomains.map(d => '@' + d).join(', ')} emails are allowed`)
       return
     }
     try {

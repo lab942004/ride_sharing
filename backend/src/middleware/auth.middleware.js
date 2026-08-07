@@ -15,7 +15,7 @@ const protect = async (req, res, next) => {
     }
 
     const token   = authHeader.split(' ')[1];
-    const decoded = verifyAccessToken(token);
+    const decoded = verifyAccessToken(token, 'user');
 
     const user = await prisma.user.findUnique({
       where : { id: decoded.id },

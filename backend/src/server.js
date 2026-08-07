@@ -7,6 +7,7 @@ const { Server } = require('socket.io');
 const cors       = require('cors');
 const helmet     = require('helmet');
 const morgan     = require('morgan');
+const cookieParser = require('cookie-parser');
 
 const { errorHandler, notFound }  = require('./middleware/error.middleware');
 const { globalLimiter }           = require('./middleware/rateLimit.middleware');
@@ -15,6 +16,11 @@ const rideRoutes                  = require('./routes/ride.routes');
 const requestRoutes               = require('./routes/request.routes');
 const chatRoutes                  = require('./routes/chat.routes');
 const profileRoutes               = require('./routes/profile.routes');
+const adminAuthRoutes             = require('./routes/adminAuth.routes');
+const adminRoutes                 = require('./routes/admin.routes');
+const publicRoutes                = require('./routes/public.routes');
+const geocodeRoutes               = require('./routes/geocode.routes');
+const pushRoutes                  = require('./routes/push.routes');
 const initSocket                  = require('./sockets/chat.socket');
 const { initCleanupJobs }         = require('./jobs/cleanup.job');
 const prisma                      = require('./config/db');
@@ -42,6 +48,14 @@ app.set('io', io); // make io accessible in controllers
 // ─── Security middleware ──────────────────────────────────────────────────────
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc  : ["'none'"],   // this is a JSON API — no HTML/JS should ever be served from here
+      frameAncestors: ["'none'"],
+      baseUri     : ["'none'"],
+      formAction  : ["'none'"],
+    },
+  },
 }));
 app.use(cors({
   origin     : (process.env.FRONTEND_URL || 'http://localhost:5173').split(','),
@@ -56,6 +70,7 @@ app.use(globalLimiter);
 // ─── Body parsing ─────────────────────────────────────────────────────────────
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+app.use(cookieParser());
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // ─── Request logging ──────────────────────────────────────────────────────────
@@ -85,6 +100,11 @@ app.use('/api/rides',    rideRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/chats',    chatRoutes);
 app.use('/api/profile',  profileRoutes);
+app.use('/api/admin/auth', adminAuthRoutes);
+app.use('/api/admin',       adminRoutes);
+app.use('/api/domains',     publicRoutes);
+app.use('/api/geocode',     geocodeRoutes);
+app.use('/api/push',        pushRoutes);
 
 
 app.get('/', (req, res) => {
