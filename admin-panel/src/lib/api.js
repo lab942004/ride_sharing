@@ -1,6 +1,8 @@
 import { getAccessToken, setAccessToken, clearAccessToken } from './tokenStore';
 
-const API_BASE = '/api';
+// Use VITE_API_URL env var if set, otherwise fall back to '/api'
+// In production, set VITE_API_URL to the full backend URL (e.g. https://api.example.com)
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 class ApiClient {
   constructor() {
@@ -9,6 +11,25 @@ class ApiClient {
 
   getToken() {
     return getAccessToken();
+  }
+
+  /**
+   * Safely parse a response as JSON.
+   * If the response is not JSON (e.g. an HTML 404 page from a static host),
+   * throw a descriptive error instead of "Unexpected token ...".
+   */
+  async parseResponse(response) {
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      return response.json();
+    }
+    // Non-JSON response — read text for a helpful error message
+    const text = await response.text();
+    throw new Error(
+      `Expected JSON but received ${contentType || 'unknown content type'}. ` +
+      `Status: ${response.status}. ` +
+      `Body preview: ${text.slice(0, 120)}`
+    );
   }
 
   async request(endpoint, options = {}) {
@@ -31,7 +52,7 @@ class ApiClient {
 
     try {
       const response = await fetch(`${this.baseUrl}${endpoint}`, config);
-      const data = await response.json();
+      const data = await this.parseResponse(response);
 
       if (!response.ok) {
         // Try token refresh on 401
@@ -40,7 +61,7 @@ class ApiClient {
           if (refreshed) {
             headers.Authorization = `Bearer ${this.getToken()}`;
             const retryResponse = await fetch(`${this.baseUrl}${endpoint}`, { ...config, headers });
-            const retryData = await retryResponse.json();
+            const retryData = await this.parseResponse(retryResponse);
             if (!retryResponse.ok) {
               throw new Error(retryData.message || 'Request failed');
             }
@@ -69,7 +90,7 @@ class ApiClient {
         credentials: 'include', // refresh token comes from the httpOnly cookie
         body: JSON.stringify({}),
       });
-      const data = await response.json();
+      const data = await this.parseResponse(response);
       if (!response.ok) return false;
 
       setAccessToken(data.data.accessToken);
