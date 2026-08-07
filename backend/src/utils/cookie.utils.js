@@ -11,10 +11,18 @@
  */
 const isProd = () => process.env.NODE_ENV === 'production';
 
+// SameSite cookie policy.
+// - 'lax'  (default): works when frontend & backend are on the same site
+//   (e.g. same domain or subdomains of the same registrable domain).
+// - 'none' : required when frontend & backend are on DIFFERENT sites
+//   (e.g. admin panel on Vercel, backend on Render). Requires Secure=true.
+// Set COOKIE_SAME_SITE="none" in production for cross-site deployments.
+const sameSite = process.env.COOKIE_SAME_SITE || (isProd() ? 'lax' : 'lax');
+
 const baseCookieOptions = (path) => ({
   httpOnly: true,
-  secure  : isProd(),               // HTTPS-only in production
-  sameSite: isProd() ? 'lax' : 'lax', // 'lax' allows normal top-level navigation/refresh flows
+  secure  : isProd() || sameSite === 'none', // 'none' requires Secure
+  sameSite,
   path,
   ...(process.env.COOKIE_DOMAIN ? { domain: process.env.COOKIE_DOMAIN } : {}),
 });
