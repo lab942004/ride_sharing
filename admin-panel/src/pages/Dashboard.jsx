@@ -222,7 +222,7 @@ export default function Dashboard() {
       </div>
 
       {/* Recent Activity */}
-      <Card className="glass border-border/50">
+      {/* <Card className="glass border-border/50">
         <CardHeader>
           <CardTitle className="text-lg">Recent Activity</CardTitle>
         </CardHeader>
@@ -251,7 +251,7 @@ export default function Dashboard() {
             </div>
           )}
         </CardContent>
-      </Card>
+      </Card> */}
     </div>
   );
 }
