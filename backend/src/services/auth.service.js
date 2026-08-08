@@ -153,6 +153,8 @@ const loginService = async (email, password) => {
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user)            throw appError('Invalid email or password', 401);
   if (!user.isVerified) throw appError('Please verify your email first', 403);
+  if (user.isBanned)    throw appError('Your account has been banned. Contact support.', 403);
+  if (user.isSuspended) throw appError('Your account has been suspended. Contact support.', 403);
 
   const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) throw appError('Invalid email or password', 401);
@@ -194,9 +196,10 @@ const refreshTokenService = async (refreshToken) => {
 
   const user = await prisma.user.findUnique({
     where : { id: decoded.id },
-    select: { id: true, email: true, domain: true, isVerified: true },
+    select: { id: true, email: true, domain: true, isVerified: true, isBanned: true, isSuspended: true },
   });
   if (!user || !user.isVerified) throw appError('User not found', 401);
+  if (user.isBanned || user.isSuspended) throw appError('Your account is no longer active. Please contact support.', 403);
 
   // Rotate refresh token: revoke old, issue new
   const newTokens = generateTokenPair({ id: user.id, email: user.email, domain: user.domain });

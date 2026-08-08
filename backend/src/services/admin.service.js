@@ -10,7 +10,6 @@ const appError = (message, statusCode = 400) =>
 
 const normalizeDomainName = (name) => {
   const normalized = String(name || '').trim().toLowerCase();
-  console.log('[domain debug] raw:', JSON.stringify(name), 'normalized:', JSON.stringify(normalized), 'pass:', DOMAIN_NAME_REGEX.test(normalized));
   if (!DOMAIN_NAME_REGEX.test(normalized)) {
     throw appError('Invalid domain name. Use a bare domain like "college.ac.in" (no @, no protocol, no path).', 400);
   }
@@ -783,13 +782,26 @@ class AdminService {
   }
 
   async createAnnouncement(data, admin) {
+    const isSuperAdmin = admin.role === 'SUPER_ADMIN';
+
+    // SECURITY: a domain-scoped admin may only create announcements scoped to
+    // their own domain — never GLOBAL, and never targeting another domain.
+    // Only SUPER_ADMIN may create GLOBAL announcements or pick an arbitrary domain.
+    let type = data.type || 'GLOBAL';
+    let domain = data.domain || null;
+    if (!isSuperAdmin) {
+      type = 'DOMAIN';
+      domain = admin.domain;
+      if (!domain) throw appError('Your admin account has no domain assigned.', 403);
+    }
+
     const announcement = await prisma.announcement.create({
       data: {
         title: data.title,
         content: data.content,
-        type: data.type || 'GLOBAL',
+        type,
         status: data.status || 'ACTIVE',
-        domain: data.domain || null,
+        domain,
         scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : null,
         createdById: admin.id,
       },
@@ -802,13 +814,23 @@ class AdminService {
     const announcement = await prisma.announcement.findUnique({ where: { id } });
     if (!announcement) throw Object.assign(new Error('Announcement not found'), { statusCode: 404 });
 
+    // SECURITY: domain-scoped admins may only touch their own domain's
+    // announcements — not GLOBAL ones and not another domain's.
+    const isSuperAdmin = admin.role === 'SUPER_ADMIN';
+    if (!isSuperAdmin && announcement.domain !== admin.domain) {
+      throw Object.assign(new Error('Access denied. This announcement is not in your domain.'), { statusCode: 403 });
+    }
+
     const updateData = {};
     if (data.title) updateData.title = data.title;
     if (data.content) updateData.content = data.content;
-    if (data.type) updateData.type = data.type;
     if (data.status) updateData.status = data.status;
-    if (data.domain !== undefined) updateData.domain = data.domain;
     if (data.scheduledAt) updateData.scheduledAt = new Date(data.scheduledAt);
+    // Only a super admin may change an announcement's type/domain scope.
+    if (isSuperAdmin) {
+      if (data.type) updateData.type = data.type;
+      if (data.domain !== undefined) updateData.domain = data.domain;
+    }
 
     const updated = await prisma.announcement.update({ where: { id }, data: updateData });
     await this._logActivity('ANNOUNCEMENT_UPDATED', 'Announcement', id, admin, { title: data.title });
@@ -816,8 +838,16 @@ class AdminService {
   }
 
   async deleteAnnouncement(id, admin) {
+    const announcement = await prisma.announcement.findUnique({ where: { id } });
+    if (!announcement) throw Object.assign(new Error('Announcement not found'), { statusCode: 404 });
+
+    const isSuperAdmin = admin.role === 'SUPER_ADMIN';
+    if (!isSuperAdmin && announcement.domain !== admin.domain) {
+      throw Object.assign(new Error('Access denied. This announcement is not in your domain.'), { statusCode: 403 });
+    }
+
     await prisma.announcement.delete({ where: { id } });
-    await this._logActivity('ANNOUNCEMENT_DELETED', 'Announcement', id, admin);
+    await this._logActivity('ANNOUNCEMENT_DELETED', 'Announcement', id, admin, { title: announcement.title });
   }
 
   // ─── User Notifications (Push to specific users) ────────────────────────────

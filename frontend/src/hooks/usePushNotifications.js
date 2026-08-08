@@ -10,7 +10,14 @@ export default function usePushNotifications(enabled) {
   const startedRef = useRef(false)
 
   useEffect(() => {
-    if (!enabled || startedRef.current) return
+    // Reset the guard when logging out, so a *different* user logging in
+    // later in the same tab re-subscribes (the push subscription needs to
+    // be re-associated with the new user's id on the backend).
+    if (!enabled) {
+      startedRef.current = false
+      return
+    }
+    if (startedRef.current) return
     startedRef.current = true
 
     const init = async () => {

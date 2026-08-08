@@ -25,10 +25,11 @@ const initSocket = (io) => {
       const decoded = verifyAccessToken(token, 'user');
       const user    = await prisma.user.findUnique({
         where : { id: decoded.id },
-        select: { id: true, name: true, rollNo: true, isVerified: true },
+        select: { id: true, name: true, rollNo: true, isVerified: true, isBanned: true, isSuspended: true },
       });
 
       if (!user || !user.isVerified) return next(new Error('Unauthorized'));
+      if (user.isBanned || user.isSuspended) return next(new Error('Account is no longer active'));
 
       socket.user = user;
       next();
@@ -89,6 +90,19 @@ const initSocket = (io) => {
         }
         if (text.trim().length > 1000) {
           return socket.emit(SOCKET_EVENTS.ERROR, { message: 'Message cannot exceed 1000 characters' });
+        }
+
+        // Re-check mute status from DB (not just the connection-time snapshot)
+        // so a mute applied mid-session takes effect immediately, not just on reconnect.
+        const currentUser = await prisma.user.findUnique({
+          where : { id: socket.user.id },
+          select: { isMuted: true, isBanned: true, isSuspended: true },
+        });
+        if (!currentUser || currentUser.isBanned || currentUser.isSuspended) {
+          return socket.emit(SOCKET_EVENTS.ERROR, { message: 'Your account is no longer active.' });
+        }
+        if (currentUser.isMuted) {
+          return socket.emit(SOCKET_EVENTS.ERROR, { message: 'You have been muted by an admin and cannot send messages.' });
         }
 
         const request = await prisma.request.findUnique({

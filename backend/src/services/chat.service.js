@@ -51,6 +51,9 @@ const getMessages = async (requestId, userId, page = 1, limit = 50) => {
 
 // ─── Send Message (REST fallback — Socket.io is preferred) ────────────────────
 const sendMessage = async (requestId, senderId, text) => {
+  const sender = await prisma.user.findUnique({ where: { id: senderId }, select: { isMuted: true } });
+  if (sender?.isMuted) throw appError('You have been muted by an admin and cannot send messages.', 403);
+
   const chat = await getChatByRequestId(requestId, senderId);
 
   const message = await prisma.message.create({

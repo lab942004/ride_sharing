@@ -20,19 +20,24 @@ const protect = async (req, res, next) => {
     const user = await prisma.user.findUnique({
       where : { id: decoded.id },
       select: {
-        id        : true,
-        name      : true,
-        email     : true,
-        rollNo    : true,
-        phone     : true,
-        profilePic: true,
-        domain    : true,
-        isVerified: true,
+        id         : true,
+        name       : true,
+        email      : true,
+        rollNo     : true,
+        phone      : true,
+        profilePic : true,
+        domain     : true,
+        isVerified : true,
+        isBanned   : true,
+        isSuspended: true,
+        isMuted    : true,
       },
     });
 
     if (!user)            return sendError(res, 401, 'User not found. Token invalid.');
     if (!user.isVerified) return sendError(res, 403, 'Account not verified. Please verify your email first.');
+    if (user.isBanned)    return sendError(res, 403, 'Your account has been banned. Contact support.');
+    if (user.isSuspended) return sendError(res, 403, 'Your account has been suspended. Contact support.');
 
     req.user = user;
     next();

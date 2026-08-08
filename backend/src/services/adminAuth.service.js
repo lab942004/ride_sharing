@@ -49,7 +49,7 @@ class AdminAuthService {
       include: { admin: true },
     });
 
-    if (!storedToken || storedToken.isRevoked) {
+    if (!storedToken || storedToken.isRevoked || new Date() > storedToken.expiresAt) {
       throw Object.assign(new Error('Invalid refresh token'), { statusCode: 401 });
     }
 

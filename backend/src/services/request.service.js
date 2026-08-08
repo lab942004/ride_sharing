@@ -132,21 +132,30 @@ const updateRequestStatus = async (requestId, userId, status, io = null) => {
   if (request.status !== 'PENDING')       throw appError(`Request is already ${request.status.toLowerCase()}`, 400);
 
   const updatedRequest = await prisma.$transaction(async (tx) => {
-    const updated = await tx.request.update({ where: { id: requestId }, data: { status } });
-
     if (status === 'ACCEPTED') {
-      // Decrement seats and mark full if needed
-      const updatedRide = await tx.ride.update({
-        where: { id: request.rideId },
+      // ── Atomic, race-safe seat decrement ──────────────────────────────────
+      // Guard the decrement with a WHERE clause so two concurrent "accept"
+      // calls on the same ride can't both succeed when only one seat is left
+      // (a plain `update` with `decrement: 1` has no such guard and can drive
+      // availableSeats negative under concurrent requests).
+      const seatUpdateResult = await tx.ride.updateMany({
+        where: { id: request.rideId, availableSeats: { gt: 0 } },
         data : { availableSeats: { decrement: 1 } },
       });
+      if (seatUpdateResult.count === 0) {
+        throw appError('This ride is fully booked. The seat was taken by someone else.', 409);
+      }
+
+      const updatedRide = await tx.ride.findUnique({ where: { id: request.rideId } });
       if (updatedRide.availableSeats <= 0) {
         await tx.ride.update({ where: { id: request.rideId }, data: { isFull: true } });
       }
+
       // Create chat room for the two participants
       await tx.chat.create({ data: { requestId } });
     }
 
+    const updated = await tx.request.update({ where: { id: requestId }, data: { status } });
     return updated;
   });
 

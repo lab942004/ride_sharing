@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { setAccessToken, clearAccessToken } from '../services/tokenStore'
+import usePushNotifications from '../hooks/usePushNotifications'
 
 const AuthContext = createContext(null)
 
@@ -35,6 +36,12 @@ export function AuthProvider({ children }) {
     restoreSession()
     return () => { cancelled = true }
   }, [])
+
+  // Register the service worker + subscribe to web push once we know who's
+  // logged in (covers both a fresh login and a restored session on reload).
+  // Previously this hook existed but was never called anywhere, so push
+  // notifications never actually got set up for any user.
+  usePushNotifications(!!user)
 
   // accessToken is kept in memory only (tokenStore) — the refresh token is
   // an httpOnly cookie the browser manages; neither ever goes in localStorage.

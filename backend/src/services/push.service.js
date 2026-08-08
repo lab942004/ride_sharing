@@ -20,9 +20,14 @@ const saveSubscription = async (userId, { endpoint, keys, userAgent }) => {
 
   const existing = await prisma.pushSubscription.findUnique({ where: { endpoint } });
   if (existing) {
+    // IMPORTANT: also re-assign userId. Without this, if the same browser
+    // endpoint is re-subscribed under a different logged-in user (shared
+    // device, or a second account on the same browser), the subscription
+    // stays bound to whichever user subscribed first — and that user keeps
+    // receiving the new user's notifications forever.
     return prisma.pushSubscription.update({
       where: { id: existing.id },
-      data : { p256dh: keys.p256dh, auth: keys.auth, userAgent: userAgent || null },
+      data : { userId, p256dh: keys.p256dh, auth: keys.auth, userAgent: userAgent || null },
     });
   }
 
