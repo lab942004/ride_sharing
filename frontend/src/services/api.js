@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { getAccessToken, setAccessToken, clearAccessToken } from './tokenStore'
+import { getAccessToken, setAccessToken, clearAccessToken, isLoggingOut } from './tokenStore'
 
 const BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
@@ -26,7 +26,12 @@ api.interceptors.response.use(
   res => res,
   async err => {
     const original = err.config
-    if (err.response?.status === 401 && !original._retry && !original.url?.includes('/auth/refresh')) {
+    if (
+      err.response?.status === 401 &&
+      !original._retry &&
+      !original.url?.includes('/auth/refresh') &&
+      !isLoggingOut() // don't resurrect a session mid-logout — see tokenStore.js
+    ) {
       original._retry = true
       try {
         // De-dupe concurrent refreshes triggered by multiple in-flight requests

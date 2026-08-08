@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react'
-import { setAccessToken, clearAccessToken } from '../services/tokenStore'
+import { setAccessToken, clearAccessToken, setLoggingOut } from '../services/tokenStore'
 import usePushNotifications from '../hooks/usePushNotifications'
 
 const AuthContext = createContext(null)
@@ -45,12 +45,23 @@ export function AuthProvider({ children }) {
   }
 
   const logout = async () => {
+    // Clear local state FIRST — the UI reflects "logged out" instantly
+    // instead of waiting on a network round trip. setLoggingOut(true) tells
+    // the axios interceptor (api.js) to skip auto-refresh-on-401 for any
+    // request that happens to fail while we're mid-logout, so a stray
+    // background call (e.g. the ride-list poller) can't race a refresh in
+    // behind us and silently re-establish the session right after we clear
+    // the cookie.
+    setLoggingOut(true)
+    clearAccessToken()
+    setUser(null)
+
     try {
       const { authAPI } = await import('../services/api')
       await authAPI.logout().catch(() => {})
-    } catch {}
-    clearAccessToken()
-    setUser(null)
+    } finally {
+      setLoggingOut(false)
+    }
   }
 
   // Register the service worker + subscribe to web push once we know who's
