@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router'
 import { ridesAPI } from '../services/api'
 import RideCard from '../components/RideCard'
 import AutosuggestInput from '../components/AutosuggestInput'
 import { useAuth } from '../context/AuthContext'
+import { RIDES_POLL_INTERVAL_MS } from '../config/constants'
 
 const testimonials = [
   {
@@ -29,21 +30,38 @@ export default function Home() {
   const [filter, setFilter] = useState({ to: '', from: '', date: '' })
   const navigate = useNavigate()
   const { user } = useAuth()
+  const lastParamsRef = useRef({})
 
   useEffect(() => {
     if (user) fetchRides()
   }, [user])
 
-  const fetchRides = async (params = {}) => {
+  // Live updates: silently re-fetch in the background so new/removed rides
+  // show up without the user needing to manually reload the page. `silent`
+  // skips the loading spinner so the list doesn't flicker every 30s — it
+  // just swaps in fresh data. Reuses whatever search filter is currently
+  // active, and pauses while the tab isn't visible to avoid wasted requests.
+  useEffect(() => {
+    if (!user) return
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchRides(lastParamsRef.current, { silent: true })
+      }
+    }, RIDES_POLL_INTERVAL_MS)
+    return () => clearInterval(interval)
+  }, [user])
+
+  const fetchRides = async (params = {}, { silent = false } = {}) => {
+    lastParamsRef.current = params
     try {
-      setLoading(true)
+      if (!silent) setLoading(true)
       const res = await ridesAPI.getAll(params)
       const d = res.data.data || res.data
       setRides(d.rides || [])
     } catch {
-      setRides([])
+      if (!silent) setRides([])
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }
 

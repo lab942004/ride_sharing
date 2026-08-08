@@ -12,12 +12,22 @@
 const isProd = () => process.env.NODE_ENV === 'production';
 
 // SameSite cookie policy.
-// - 'lax'  (default): works when frontend & backend are on the same site
-//   (e.g. same domain or subdomains of the same registrable domain).
-// - 'none' : required when frontend & backend are on DIFFERENT sites
-//   (e.g. admin panel on Vercel, backend on Render). Requires Secure=true.
-// Set COOKIE_SAME_SITE="none" in production for cross-site deployments.
-const sameSite = process.env.COOKIE_SAME_SITE || (isProd() ? 'lax' : 'lax');
+// - 'lax'  : only works when frontend & backend are the SAME site (identical
+//   origin, or true subdomains of one registrable domain with COOKIE_DOMAIN
+//   set). Browsers will NOT attach a Lax cookie to background XHR/fetch
+//   calls made cross-site — which is exactly what the frontend's silent
+//   "restore session" call on every page load is. If frontend/backend are on
+//   different hosts (e.g. Vercel + Render — this project's default/expected
+//   deployment shape per .env.example), 'lax' silently breaks that call,
+//   which looks like "the user gets logged out on every refresh" even
+//   though the refresh token itself is still perfectly valid.
+// - 'none' : required for cross-site deployments. Requires Secure=true
+//   (HTTPS), which is why it's not used in local http dev.
+//
+// Default to 'none' in production (the common case for this project is
+// frontend and backend on separate hosts) unless the operator explicitly
+// opts into 'lax' via COOKIE_SAME_SITE for a genuine same-site deployment.
+const sameSite = process.env.COOKIE_SAME_SITE || (isProd() ? 'none' : 'lax');
 
 const baseCookieOptions = (path) => ({
   httpOnly: true,

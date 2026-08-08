@@ -37,12 +37,6 @@ export function AuthProvider({ children }) {
     return () => { cancelled = true }
   }, [])
 
-  // Register the service worker + subscribe to web push once we know who's
-  // logged in (covers both a fresh login and a restored session on reload).
-  // Previously this hook existed but was never called anywhere, so push
-  // notifications never actually got set up for any user.
-  usePushNotifications(!!user)
-
   // accessToken is kept in memory only (tokenStore) — the refresh token is
   // an httpOnly cookie the browser manages; neither ever goes in localStorage.
   const login = (userData, accessToken) => {
@@ -58,6 +52,12 @@ export function AuthProvider({ children }) {
     clearAccessToken()
     setUser(null)
   }
+
+  // Register the service worker + subscribe to web push once we know who's
+  // logged in (covers both a fresh login and a restored session on reload).
+  // Previously this hook existed but was never called anywhere, so push
+  // notifications never actually got set up for any user.
+  usePushNotifications(!!user)
 
   const updateUser = (userData) => {
     setUser(userData)
