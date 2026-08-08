@@ -4,7 +4,8 @@ import { chatAPI, requestsAPI } from '../services/api'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
 import { getSocket } from '../services/socket'
-import { format, addHours, isPast } from 'date-fns'
+import { format } from 'date-fns'
+import { isChatExpired, hasChatDisappeared } from '../utils/rideTime'
 
 function ChatBubble({ msg, isMe }) {
   return (
@@ -129,9 +130,13 @@ export default function Chat() {
       const d = res.data.data || res.data
       const inc = d.received || []
       const out = d.sent || []
+      // The backend already excludes requests whose chat has disappeared
+      // (5+ days past ride departure), but we filter again here too in case
+      // this list is showing slightly stale data from before that cutoff.
+      const notDisappeared = r => !r.ride || !hasChatDisappeared(r.ride.date, r.ride.time)
       const accepted = [
-        ...inc.filter(r => r.status === 'ACCEPTED' || r.status === 'accepted'),
-        ...out.filter(r => r.status === 'ACCEPTED' || r.status === 'accepted'),
+        ...inc.filter(r => (r.status === 'ACCEPTED' || r.status === 'accepted') && notDisappeared(r)),
+        ...out.filter(r => (r.status === 'ACCEPTED' || r.status === 'accepted') && notDisappeared(r)),
       ]
       setAcceptedRequests(accepted)
       // Set first if no active, or navigate from request page
@@ -197,11 +202,7 @@ export default function Chat() {
     const req = acceptedRequests.find(r => r.id === requestId)
     if (!req || !req.ride) return
 
-    const rideDateTime = new Date(`${req.ride.date}T${req.ride.time}`)
-    const chatExpiryTime = addHours(rideDateTime, 2)
-    const isExpired = isPast(chatExpiryTime)
-
-    setChatExpired(isExpired)
+    setChatExpired(isChatExpired(req.ride.date, req.ride.time))
     setPhoneShared(req.phoneShared || false)
   }
 

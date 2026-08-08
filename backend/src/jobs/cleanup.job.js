@@ -1,6 +1,7 @@
 const cron   = require('node-cron');
 const prisma = require('../config/db');
-const { isRideExpired, getRideDepartureDate } = require('../utils/rideTime.utils');
+const { isRideExpired, getRideDepartureDate, hasChatDisappeared } = require('../utils/rideTime.utils');
+const { CHAT_DISAPPEAR_DAYS } = require('../config/constants');
 const { sendPushToUser } = require('../services/push.service');
 
 /**
@@ -176,6 +177,47 @@ const purgeOldRefreshTokens = async () => {
 };
 
 /**
+ * JOB: Purge disappeared chats
+ *
+ * Runs every hour.
+ * An accepted request's chat should disappear CHAT_DISAPPEAR_DAYS after the
+ * ride departed (GET /requests already hides these — see request.service.js
+ * getRequests — but this job actually deletes the underlying Chat, so it
+ * doesn't just sit around in the DB forever). Deleting the Chat row cascades
+ * to its Messages (schema.prisma: Message.chat has onDelete: Cascade).
+ * The Request record itself is intentionally left alone — this only removes
+ * the chat/messages, not request history.
+ */
+const purgeDisappearedChats = async () => {
+  try {
+    const candidates = await prisma.request.findMany({
+      where: {
+        status: 'ACCEPTED',
+        chat  : { isNot: null },
+      },
+      select: {
+        id  : true,
+        ride: { select: { date: true, time: true } },
+      },
+    });
+
+    const disappearedIds = candidates
+      .filter((r) => hasChatDisappeared(r.ride.date, r.ride.time))
+      .map((r) => r.id);
+
+    if (disappearedIds.length === 0) return;
+
+    const { count } = await prisma.chat.deleteMany({
+      where: { requestId: { in: disappearedIds } },
+    });
+
+    console.log(`🗑️  [Cleanup] Purged ${count} chat(s) older than ${CHAT_DISAPPEAR_DAYS} days past ride departure.`);
+  } catch (err) {
+    console.error('❌ [Cleanup] purgeDisappearedChats failed:', err.message);
+  }
+};
+
+/**
  * Register all cron jobs.
  * Call this once from server.js after DB is connected.
  */
@@ -195,7 +237,16 @@ const initCleanupJobs = () => {
   // Every day at 2 AM — purge old refresh tokens
   cron.schedule('0 2 * * *', purgeOldRefreshTokens, { name: 'purge-refresh-tokens' });
 
+  // Every hour — purge chats (and their messages) that disappeared
+  cron.schedule('0 * * * *', purgeDisappearedChats, { name: 'purge-disappeared-chats' });
+
   console.log('⏰ [Cleanup] Cron jobs registered');
 };
 
-module.exports = { initCleanupJobs, markExpiredRides, purgeExpiredOTPs, sendRideReminders };
+module.exports = {
+  initCleanupJobs,
+  markExpiredRides,
+  purgeExpiredOTPs,
+  sendRideReminders,
+  purgeDisappearedChats,
+};

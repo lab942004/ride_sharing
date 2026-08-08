@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router'
 import { requestsAPI } from '../services/api'
 import { useToast } from '../context/ToastContext'
 import { useState, useEffect } from 'react'
-import { format, addHours, isPast } from 'date-fns'
+import { format } from 'date-fns'
+import { isChatExpired } from '../utils/rideTime'
 
 export default function RideCard({ ride, showActions = true, onDelete }) {
   const { user } = useAuth()
@@ -34,9 +35,7 @@ export default function RideCard({ ride, showActions = true, onDelete }) {
         
         // Check if chat is expired (2 hours after ride time)
         if (userRequest.status === 'ACCEPTED') {
-          const rideDateTime = new Date(`${ride.date}T${ride.time}`)
-          const chatExpiryTime = addHours(rideDateTime, 2)
-          setChatExpired(isPast(chatExpiryTime))
+          setChatExpired(isChatExpired(ride.date, ride.time))
         }
       }
     } catch (err) {

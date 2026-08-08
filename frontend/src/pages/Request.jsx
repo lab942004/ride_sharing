@@ -3,6 +3,7 @@ import { requestsAPI, chatAPI } from '../services/api'
 import { useToast } from '../context/ToastContext'
 import { useNavigate } from 'react-router'
 import { format } from 'date-fns'
+import { hasChatDisappeared } from '../utils/rideTime'
 
 function RequestCard({ request, onAccept, onReject, viewType }) {
   const navigate = useNavigate()
@@ -12,6 +13,7 @@ function RequestCard({ request, onAccept, onReject, viewType }) {
   const isIncoming = viewType === 'incoming'
   const isPending = request.status === 'PENDING' || request.status === 'pending'
   const isAccepted = request.status === 'ACCEPTED' || request.status === 'accepted'
+  const chatDisappeared = ride && hasChatDisappeared(ride.date, ride.time)
 
   const formattedDate = ride?.date ? format(new Date(ride.date), 'dd/MM/yyyy') : 'N/A'
 
@@ -80,13 +82,16 @@ function RequestCard({ request, onAccept, onReject, viewType }) {
             </button>
           </>
         )}
-        {isAccepted && (
+        {isAccepted && !chatDisappeared && (
           <button
             onClick={handleChatNav}
             className="btn-primary flex-1 text-sm py-2.5"
           >
             💬 Open Chat
           </button>
+        )}
+        {isAccepted && chatDisappeared && (
+          <span className="text-sm text-muted italic">Chat no longer available</span>
         )}
         {!isIncoming && isPending && (
           <span className="text-sm text-muted italic">Awaiting response...</span>

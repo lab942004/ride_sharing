@@ -1,6 +1,6 @@
 const prisma = require('../config/db');
 const { sendRideRequestEmail, sendRequestStatusEmail } = require('./email.service');
-const { isRideExpired } = require('../utils/rideTime.utils');
+const { isRideExpired, hasChatDisappeared } = require('../utils/rideTime.utils');
 const { SOCKET_EVENTS } = require('../config/constants');
 const { sendPushToUser } = require('./push.service');
 
@@ -108,7 +108,17 @@ const getRequests = async (userId) => {
       orderBy: { createdAt: 'desc' },
     }),
   ]);
-  return { sent, received };
+
+  // An ACCEPTED request's chat disappears CHAT_DISAPPEAR_DAYS after the ride
+  // departed. Non-accepted requests (PENDING/REJECTED) aren't chats and are
+  // unaffected — only filter the ones this actually applies to.
+  const dropDisappearedChats = (r) =>
+    r.status !== 'ACCEPTED' || !hasChatDisappeared(r.ride.date, r.ride.time);
+
+  return {
+    sent    : sent.filter(dropDisappearedChats),
+    received: received.filter(dropDisappearedChats),
+  };
 };
 
 // ─── Update Request Status ────────────────────────────────────────────────────

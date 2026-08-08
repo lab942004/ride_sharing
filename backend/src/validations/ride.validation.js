@@ -1,5 +1,6 @@
 const { z } = require('zod');
 const { VEHICLE_TYPES, MAX_RIDE_DAYS_AHEAD } = require('../config/constants');
+const { getRideDepartureDate } = require('../utils/rideTime.utils');
 
 /**
  * POST /rides — create a new ride.
@@ -37,10 +38,8 @@ const createRideSchema = z
     const maxDate = new Date();
     maxDate.setDate(maxDate.getDate() + MAX_RIDE_DAYS_AHEAD);
 
-    // Combine date + time for a precise future-check
-    const [hours, minutes] = data.time.split(':').map(Number);
-    const departure        = new Date(data.date);
-    departure.setHours(hours, minutes, 0, 0);
+    // Combine date + time for a precise future-check (timezone-safe — see rideTime.utils.js)
+    const departure = getRideDepartureDate(data.date, data.time);
 
     if (departure < now) {
       ctx.addIssue({

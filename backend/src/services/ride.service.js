@@ -69,8 +69,12 @@ const getRides = async (domain, filters = {}, userId) => {
     domain,
     isExpired     : false,
     // We filter by the date column ≥ today; precise time filtering happens in-memory
-    // via isRideExpired util, but DB-level we cut down rows efficiently:
-    date          : { gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()) },
+    // via isRideExpired util, but DB-level we cut down rows efficiently. Ride dates
+    // are stored as UTC midnight (new Date("YYYY-MM-DD")), so the boundary here must
+    // also be UTC midnight — building it from the server's local Y/M/D (the old code)
+    // drifts off that by the server's timezone offset and can wrongly exclude/include
+    // rows right at the day boundary.
+    date          : { gte: new Date(now.toISOString().slice(0, 10)) },
   };
 
   if (from)        where.from        = { contains: from, mode: 'insensitive' };

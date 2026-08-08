@@ -6,6 +6,14 @@ module.exports = {
   // Rides
   MAX_RIDE_DAYS_AHEAD: 7,
 
+  // Ride departure times are entered by students in local (India) time.
+  // Fixed offset — India does not observe DST, so this is safe to hardcode.
+  RIDE_TIME_UTC_OFFSET: '+05:30',
+
+  // Chat
+  CHAT_EXPIRY_HOURS  : 2, // chat becomes read-only this many hours after ride departure
+  CHAT_DISAPPEAR_DAYS: 5, // chat is removed entirely this many days after ride departure
+
   // Auth
   BCRYPT_ROUNDS: 12,
 
