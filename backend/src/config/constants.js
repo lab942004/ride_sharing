@@ -25,7 +25,7 @@ module.exports = {
   },
 
   // Vehicle types
-  VEHICLE_TYPES: ['Car', 'Bike', 'Auto', 'Bus', 'Other'],
+  VEHICLE_TYPES: ['Car', 'Bike', 'Auto', 'Bus', 'Cab', 'Other'],
 
   // Pagination
   DEFAULT_PAGE : 1,
