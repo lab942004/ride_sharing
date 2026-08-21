@@ -4,6 +4,8 @@ import { useToast } from '../context/ToastContext'
 import { useNavigate } from 'react-router'
 import { format } from 'date-fns'
 import { hasChatDisappeared } from '../utils/rideTime'
+import AdContainer from '../components/ads/AdContainer'
+import { ADSENSE } from '../config/adsense'
 
 function RequestCard({ request, onAccept, onReject, viewType }) {
   const navigate = useNavigate()
@@ -226,6 +228,12 @@ export default function Request() {
             ))}
           </div>
         )}
+
+        {/* ── RIDE DETAILS ADVERTISEMENT ─────────────────────────── */}
+        {/* Placed after the ride/request cards (the booking section) and
+            before the footer ("additional information"), so it never covers
+            the Accept / Reject / Chat buttons or ride information. */}
+        <AdContainer adSlot={ADSENSE.RIDE_DETAILS_SLOT} className="mt-10" />
       </section>
     </div>
   )

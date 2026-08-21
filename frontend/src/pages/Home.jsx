@@ -1,10 +1,12 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Fragment } from 'react'
 import { useNavigate } from 'react-router'
 import { ridesAPI } from '../services/api'
 import RideCard from '../components/RideCard'
 import AutosuggestInput from '../components/AutosuggestInput'
+import AdContainer from '../components/ads/AdContainer'
 import { useAuth } from '../context/AuthContext'
 import { RIDES_POLL_INTERVAL_MS } from '../config/constants'
+import { ADSENSE } from '../config/adsense'
 
 const testimonials = [
   {
@@ -153,6 +155,11 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── HOMEPAGE ADVERTISEMENT ─────────────────────────────────── */}
+      {/* Header → Hero/Search → Homepage Ad → Available Rides. Placed outside
+          the hero and never over the search form or ride cards. */}
+      <AdContainer adSlot={ADSENSE.HOME_SLOT} className="my-6" />
+
       {/* ── RIDE LISTINGS ─────────────────────────────────────────── */}
       {user && (
         <section className="max-w-7xl mx-auto px-6 py-14">
@@ -171,15 +178,27 @@ export default function Home() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {rides.map((ride, i) => (
-                <div
-                  key={ride.id}
-                  className="animate-fade-up"
-                  style={{ animationDelay: `${i * 0.08}s`, animationFillMode: 'both' }}
-                >
-                  <RideCard ride={ride} />
-                </div>
-              ))}
+              {rides.map((ride, i) => {
+                // Insert a full-width ride-list ad after every 5 ride cards
+                // (Ride 5 → AD → Ride 6 → …), spanning the full grid so it
+                // never breaks the 1/2-column responsive layout.
+                const showAd = i > 0 && (i + 1) % 5 === 0
+                return (
+                  <Fragment key={ride.id}>
+                    <div
+                      className="animate-fade-up"
+                      style={{ animationDelay: `${i * 0.08}s`, animationFillMode: 'both' }}
+                    >
+                      <RideCard ride={ride} />
+                    </div>
+                    {showAd && (
+                      <div className="col-span-full">
+                        <AdContainer adSlot={ADSENSE.RIDE_LIST_SLOT} className="my-2" />
+                      </div>
+                    )}
+                  </Fragment>
+                )
+              })}
             </div>
           )}
         </section>
