@@ -26,7 +26,7 @@ export default function AdContainer({
 }) {
   return (
     <div
-      className={`w-full overflow-hidden my-4 ${className}`.trim()}
+      className={`ad-container ${className}`.trim()}
       style={style}
     >
       <GoogleAd adSlot={adSlot} format={format} responsive={responsive} enabled={enabled} />

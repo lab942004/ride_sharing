@@ -158,7 +158,7 @@ export default function Home() {
       {/* ── HOMEPAGE ADVERTISEMENT ─────────────────────────────────── */}
       {/* Header → Hero/Search → Homepage Ad → Available Rides. Placed outside
           the hero and never over the search form or ride cards. */}
-      <AdContainer adSlot={ADSENSE.HOME_SLOT} className="my-6" />
+      <AdContainer adSlot={ADSENSE.HOME_SLOT} className="my-2" />
 
       {/* ── RIDE LISTINGS ─────────────────────────────────────────── */}
       {user && (
