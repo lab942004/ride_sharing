@@ -253,15 +253,23 @@
 /* ── Force the real AdSense box to 60px tall ──
    After AdSense fills, its adsbygoogle.js script rewrites the <ins> element's
    inline `height` to match whatever responsive creative was served (it was
-   inflating to 300–400px tall). Inline styles set by React can't stop that
-   runtime override, so we need !important to keep every adsbygoogle box pinned
-   to 60px. `overflow:hidden` + `max-height` clip any oversized creative the
-   network still tries to draw, and it simply doesn't push the page down. */
+   inflating to 300–400px tall). It also injects a host <div> and <iframe> at
+   that same tall size. Inline styles set by React can't stop that runtime
+   override, so we use !important on the <ins> AND its injected children to pin
+   every adsbygoogle box, host, and iframe to 60px for ALL placements.
+   `overflow:hidden` clips any oversized creative so it never pushes the page. */
 .adsbygoogle {
   height: 60px !important;
   min-height: 60px !important;
   max-height: 60px !important;
   overflow: hidden;
+}
+
+.adsbygoogle > div,
+.adsbygoogle iframe {
+  height: 60px !important;
+  min-height: 60px !important;
+  max-height: 60px !important;
 }
 
 .ad-placeholder-title {
