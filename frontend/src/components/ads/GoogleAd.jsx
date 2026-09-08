@@ -43,13 +43,15 @@ export default function GoogleAd({
   const pushedRef = useRef(false)
 
   // Base style for the real <ins> ad unit. Width is kept to 100%/max 100% so it
-  // never creates horizontal overflow. When compact, a small min-height reserves
-  // a visible slot without ever clipping a larger ad AdSense serves (min-height
-  // only guarantees a floor — a taller responsive creative still grows).
+  // never creates horizontal overflow. The ad area height is pinned to 60px
+  // instead of AdSense's auto-sized default so every placement holds a fixed,
+  // predictable 60px strip. When compact, a small min-height still reserves a
+  // visible slot (a taller value passed via `style` still wins at the end).
   const baseStyle = {
     display: 'block',
     width: '100%',
     maxWidth: '100%',
+    height: '60px',
   }
   if (compact) {
     baseStyle.minHeight = '50px'
