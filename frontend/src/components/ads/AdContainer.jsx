@@ -10,7 +10,8 @@ import GoogleAd from './GoogleAd'
  *  - Matches the existing Tailwind spacing rhythm (my-4) and theme.
  *
  * @param {string}  adSlot     Slot id from ADSENSE.
- * @param {string}  format     Ad format ("auto" default).
+ * @param {string}  format     Ad format ("horizontal" default — smallest
+ *                             compact responsive banner; overridable).
  * @param {boolean} responsive Full-width responsive flag (default true).
  * @param {string}  className  Extra classes added to the wrapper.
  * @param {object}  style      Extra inline styles for the wrapper.
@@ -18,7 +19,11 @@ import GoogleAd from './GoogleAd'
  */
 export default function AdContainer({
   adSlot,
-  format = 'auto',
+  // Default to a horizontal (leaderboard-style) responsive banner. This is the
+  // smallest appropriate compact banner AdSense supports, sized to fit the fixed
+  // ~60–70px reserved strip. It prevents the responsive "auto" engine from
+  // serving/expanding a tall creative that would blow up the reserved area.
+  format = 'horizontal',
   responsive = true,
   className = '',
   style,

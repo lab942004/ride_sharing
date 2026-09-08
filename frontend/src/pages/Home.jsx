@@ -171,8 +171,10 @@ export default function Home() {
 
       {/* ── HOMEPAGE ADVERTISEMENT ─────────────────────────────────── */}
       {/* Header → Hero/Search → Homepage Ad → Available Rides. Placed outside
-          the hero and never over the search form or ride cards. */}
-      <AdContainer adSlot={ADSENSE.HOME_SLOT} className="my-2" />
+          the hero and never over the search form or ride cards. No extra margin
+          class — .ad-container pins the reserved height to ~60–70px and the
+          hero's py-10/py-16 provides the spacing, so no utility re-adds space. */}
+      <AdContainer adSlot={ADSENSE.HOME_SLOT} />
 
       {/* ── RIDE LISTINGS ─────────────────────────────────────────── */}
       {user && (
@@ -207,7 +209,7 @@ export default function Home() {
                     </div>
                     {showAd && (
                       <div className="col-span-full">
-                        <AdContainer adSlot={ADSENSE.RIDE_LIST_SLOT} className="my-2" />
+                        <AdContainer adSlot={ADSENSE.RIDE_LIST_SLOT} />
                       </div>
                     )}
                   </Fragment>
