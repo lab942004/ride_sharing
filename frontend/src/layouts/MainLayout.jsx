@@ -6,9 +6,9 @@ import { ADSENSE } from '../config/adsense'
 
 export default function MainLayout() {
   // Reserve extra bottom padding on mobile only while the mobile bottom ad is
-  // active, so the fixed (compact) ad never covers content, buttons, or
-  // navigation. pb-[55px] keeps the strip clear while removing the large empty
-  // gap that the old pb-20 (80px) left behind.
+  // active, so the fixed ad never covers content, buttons, or navigation.
+  // pb-ad-safe keeps the 60px strip clear while removing the large empty gap
+  // that the old pb-20 (80px) left behind.
   const bottomPad = ADSENSE.ENABLED ? 'pb-ad-safe md:pb-0' : ''
 
   return (

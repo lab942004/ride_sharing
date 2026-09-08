@@ -21,11 +21,10 @@ import { ADSENSE, ADSENSE_READY } from '../../config/adsense'
  * @param {string}  className  Extra classes for the <ins> element.
  * @param {object}  style      Extra inline styles merged over display:block.
  * @param {boolean} compact    Slim chrome for sticky/narrow placements. For the
- *                             real <ins> unit this ONLY trims the surrounding
- *                             placeholder/padding — it never forces a fixed or
- *                             clipped height. Google's responsive "auto" format
- *                             keeps choosing the correct size, so a larger ad
- *                             served by Google is preserved (policy-safe).
+ *                             real <ins> unit this trims the surrounding chrome;
+ *                             the actual box height is still pinned to 60px by a
+ *                             CSS !important rule (see index.css), because
+ *                             AdSense rewrites inline heights at runtime.
  * @param {boolean} enabled    Per-instance opt-out (default true).
  */
 export default function GoogleAd({
@@ -43,10 +42,10 @@ export default function GoogleAd({
   const pushedRef = useRef(false)
 
   // Base style for the real <ins> ad unit. Width is kept to 100%/max 100% so it
-  // never creates horizontal overflow. The ad area height is pinned to 60px
-  // instead of AdSense's auto-sized default so every placement holds a fixed,
-  // predictable 60px strip. When compact, a small min-height still reserves a
-  // visible slot (a taller value passed via `style` still wins at the end).
+  // never creates horizontal overflow. The ad area defaults to 60px tall; this
+  // inline value is a fallback, while the CSS `.adsbygoogle { height: 60px
+  // !important }` rule (index.css) is what actually beats AdSense's runtime
+  // override. Per-instance values passed via `style` are merged on top.
   const baseStyle = {
     display: 'block',
     width: '100%',
@@ -118,11 +117,10 @@ export default function GoogleAd({
     return null
   }
 
-  // Production ad unit. Note: compact intentionally does NOT set a fixed or
-  // clipped height here. Google's "auto" responsive engine picks the right
-  // creative for the viewport, and hard-capping it would distort/hide a real ad
-  // AdSense serves. The compact strip trims chrome (see MobileBottomAd) while
-  // AdSense remains fully in control of the actual ad box height.
+  // Production ad unit. Height is enforced by the CSS !important rule on
+  // `.adsbygoogle` (index.css), since AdSense rewrites inline heights to match
+  // the responsive creative it serves — without it this box would inflate to
+  // hundreds of pixels tall.
   return (
     <ins
       ref={insRef}

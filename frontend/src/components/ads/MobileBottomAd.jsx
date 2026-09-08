@@ -7,8 +7,8 @@ import GoogleAd from './GoogleAd'
  * - Only rendered on mobile/tablet widths (hidden on md+ screens).
  * - `compact` (default true) uses a short horizontal slot so the fixed strip
  *   stays banner-sized instead of allowing an auto-format ad to become tall.
- * - A matching bottom spacer is reserved in MainLayout (pb-[55px] on mobile)
- *   so this ad never covers content, buttons, chat controls, or bottom
+ * - A matching bottom spacer (60px) is reserved in MainLayout (pb-ad-safe on
+ *   mobile) so this ad never covers content, buttons, chat controls, or bottom
  *   navigation, and never blocks scrolling.
  * - Renders nothing when ads are globally disabled.
  */
