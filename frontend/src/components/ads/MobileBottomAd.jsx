@@ -5,10 +5,8 @@ import GoogleAd from './GoogleAd'
  * Sticky mobile-only advertisement pinned to the bottom edge of the viewport.
  *
  * - Only rendered on mobile/tablet widths (hidden on md+ screens).
- * - `compact` (default true) trims the surrounding chrome (padding, shadow,
- *   placeholder height) so the strip eats far less vertical space while the
- *   real Google AdSense unit still sizes itself responsively — it is never
- *   clipped or distorted by an aggressive fixed height.
+ * - `compact` (default true) uses a short horizontal slot so the fixed strip
+ *   stays banner-sized instead of allowing an auto-format ad to become tall.
  * - A matching bottom spacer is reserved in MainLayout (pb-[55px] on mobile)
  *   so this ad never covers content, buttons, chat controls, or bottom
  *   navigation, and never blocks scrolling.
@@ -40,7 +38,12 @@ export default function MobileBottomAd({ enabled = true, compact = true }) {
           compact ? 'px-1 py-0' : 'px-2 py-1.5',
         ].join(' ')}
       >
-        <GoogleAd adSlot={ADSENSE.MOBILE_BOTTOM_SLOT} compact={compact} />
+        <GoogleAd
+          adSlot={ADSENSE.MOBILE_BOTTOM_SLOT}
+          format={compact ? 'horizontal' : 'auto'}
+          compact={compact}
+          style={compact ? { height: '50px', minHeight: '50px' } : undefined}
+        />
       </div>
     </div>
   )
