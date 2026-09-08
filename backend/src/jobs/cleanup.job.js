@@ -5,6 +5,32 @@ const { CHAT_DISAPPEAR_DAYS } = require('../config/constants');
 const { sendPushToUser } = require('../services/push.service');
 
 /**
+ * node-cron does not prevent a scheduled job from starting again while the
+ * previous run of the *same* job is still in flight. `sendRideReminders`
+ * scans the whole ride table every minute and, under load (many rides,
+ * slow DB), a run can take longer than a minute — at which point runs start
+ * overlapping and each additional overlapping run makes the next tick
+ * slower still. Wrap any job that could plausibly overlap with `withLock`
+ * so a run that's still going simply skips the next tick instead of
+ * stacking up.
+ */
+const withLock = (name, fn) => {
+  let running = false;
+  return async (...args) => {
+    if (running) {
+      console.warn(`⏭️  [Cleanup] Skipping "${name}" — previous run still in progress.`);
+      return;
+    }
+    running = true;
+    try {
+      await fn(...args);
+    } finally {
+      running = false;
+    }
+  };
+};
+
+/**
  * JOB: Mark expired rides
  *
  * Runs every 5 minutes.
@@ -89,31 +115,35 @@ const sendRideReminders = async () => {
 
     if (due.length === 0) return;
 
+    // -- Fan out push notifications -----------------------------------
+    // Fire all pushes concurrently instead of `await`ing them one ride at a
+    // time in a sequential for...of loop - under load (many due rides) that
+    // loop got slower every tick and could start overlapping with the next
+    // scheduled run. Push failures are logged but never block the DB update.
     for (const ride of due) {
       const body = `Your ride from ${ride.from} to ${ride.to} departs at ${ride.time}. Be ready!`;
 
-      // Notify the ride creator
       sendPushToUser(ride.createdById, {
         title: 'Ride departing in 15 minutes',
         body,
-        url: '/#/',
+        url: '/',
       }).catch((err) => console.error('Push notification failed:', err.message));
 
-      // Notify all accepted passengers
       for (const req of ride.requests) {
         sendPushToUser(req.requesterId, {
           title: 'Ride departing in 15 minutes',
           body,
-          url: '/#/',
+          url: '/',
         }).catch((err) => console.error('Push notification failed:', err.message));
       }
-
-      // Mark as reminded so we don't re-send
-      await prisma.ride.update({
-        where: { id: ride.id },
-        data : { reminderSent: true },
-      });
     }
+
+    // -- Mark all due rides as reminded in a single batched write ------
+    // A single updateMany instead of N sequential updates (one per ride).
+    await prisma.ride.updateMany({
+      where: { id: { in: due.map((r) => r.id) } },
+      data : { reminderSent: true },
+    });
 
     console.log(`⏰ [Reminder] Sent 15-min reminders for ${due.length} ride(s).`);
   } catch (err) {
@@ -222,11 +252,14 @@ const purgeDisappearedChats = async () => {
  * Call this once from server.js after DB is connected.
  */
 const initCleanupJobs = () => {
-  // Every minute — send 15-minute ride departure reminders
-  cron.schedule('* * * * *', sendRideReminders, { name: 'send-ride-reminders' });
+  // Every minute — send 15-minute ride departure reminders.
+  // Guarded: this job does a full table scan and, under load, a run can
+  // outlast the 1-minute interval — without the guard, node-cron would
+  // happily start a second overlapping run on top of it.
+  cron.schedule('* * * * *', withLock('send-ride-reminders', sendRideReminders), { name: 'send-ride-reminders' });
 
   // Every 5 minutes — mark expired rides + reject pending requests
-  cron.schedule('*/5 * * * *', markExpiredRides, { name: 'mark-expired-rides' });
+  cron.schedule('*/5 * * * *', withLock('mark-expired-rides', markExpiredRides), { name: 'mark-expired-rides' });
 
   // Every 10 minutes — purge expired OTPs
   cron.schedule('*/10 * * * *', purgeExpiredOTPs, { name: 'purge-otps' });

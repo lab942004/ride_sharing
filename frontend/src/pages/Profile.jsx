@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
-import { profileAPI, ridesAPI, requestsAPI } from '../services/api'
+import { profileAPI, ridesAPI, requestsAPI, userLabel } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { useNavigate } from 'react-router'
 import { format } from 'date-fns'
+import { usePageMeta } from '../hooks/usePageMeta'
 
 function MyRideCard({ ride, onDelete }) {
   const isFull = ride.availableSeats === 0
@@ -14,7 +15,9 @@ function MyRideCard({ ride, onDelete }) {
         {isFull && (
           <span className="text-xs bg-red-100 text-red-600 font-semibold px-2 py-0.5 rounded-full">FULL</span>
         )}
-        <span className="text-xs text-muted font-mono ml-auto">ID: {ride.createdBy?.rollNo || '—'}</span>
+        <span className="text-xs text-muted font-mono ml-auto truncate">
+          {userLabel(ride.createdBy) || '—'}
+        </span>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="info-pair">
@@ -60,6 +63,14 @@ function MyRideCard({ ride, onDelete }) {
 }
 
 export default function Profile() {
+  usePageMeta({
+    title: 'My Profile',
+    description:
+      'Manage your RideShare profile — update your name, roll number or employee ID, profile picture, phone, and password, and review the rides you created.',
+    keywords: 'profile, carpool account settings, change password rideshare, my rides, ride share account',
+    path: '/profile',
+  })
+
   const { user, updateUser, logout } = useAuth()
   const toast = useToast()
   const navigate = useNavigate()
@@ -205,7 +216,7 @@ export default function Profile() {
                 )}
                 <p className="text-muted text-sm mt-1">{user?.email}</p>
                 <p className="text-muted text-sm">
-                  Roll No: <span className="font-semibold text-charcoal">{user?.rollNo}</span>
+                  {user?.identifierType === 'SEQUENCE' ? 'RideShare ID' : 'Roll No / Employee ID'}: <span className="font-semibold text-charcoal">{user?.identifierType === 'SEQUENCE' ? `#${user?.identifier}` : user?.identifier}</span>
                 </p>
               </div>
 
@@ -285,7 +296,7 @@ export default function Profile() {
           </div>
           <div className="text-center">
             <p className="font-display text-lg font-bold text-primary break-all">
-              {user?.domain || 'NITKKR'}
+                    {user?.domain || 'Global'}
             </p>
             <p className="text-xs text-muted mt-1">Domain</p>
           </div>

@@ -1,9 +1,9 @@
-const bcrypt = require('bcryptjs');
+﻿const bcrypt = require('bcryptjs');
 const prisma  = require('../config/db');
 const { sendSuccess, sendError } = require('../utils/response.utils');
 const { BCRYPT_ROUNDS }          = require('../config/constants');
 
-// ─── GET /profile ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ GET /profile â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const getProfile = async (req, res, next) => {
   try {
     const user = await prisma.user.findUnique({
@@ -11,7 +11,7 @@ const getProfile = async (req, res, next) => {
       select: {
         id        : true,
         name      : true,
-        rollNo    : true,
+        identifier    : true,
         email     : true,
         phone     : true,
         profilePic: true,
@@ -31,7 +31,7 @@ const getProfile = async (req, res, next) => {
   } catch (e) { next(e); }
 };
 
-// ─── PATCH /profile ───────────────────────────────────────────────────────────
+// â”€â”€â”€ PATCH /profile â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Zod validation happens in route via validate(updateProfileSchema)
 const { uploadImage } = require('../utils/cloudinary.utils');
 
@@ -42,6 +42,13 @@ const updateProfile = async (req, res, next) => {
     if (name  !== undefined) updateData.name  = name;
     if (phone !== undefined) updateData.phone = phone; // null clears it
 
+    // SECURITY: `identifier` (roll/emp ID or the gmail sequence number) is
+    // immutable â€” silently drop it if a client tries to send it. The select
+    // below also ensures it's never writable through this endpoint.
+    if (req.body.identifier !== undefined || req.body.rollNo !== undefined) {
+      console.warn(`âš ï¸  User ${req.user.id} attempted to change their immutable identifier â€” blocked.`);
+    }
+
     if (req.file) {
       const uploadResult = await uploadImage(req.file);
       updateData.profilePic = uploadResult.secure_url;
@@ -50,13 +57,13 @@ const updateProfile = async (req, res, next) => {
     const user = await prisma.user.update({
       where : { id: req.user.id },
       data  : updateData,
-      select: { id: true, name: true, rollNo: true, email: true, phone: true, profilePic: true, domain: true },
+      select: { id: true, name: true, identifier: true, identifierType: true, email: true, phone: true, profilePic: true, domain: true },
     });
     sendSuccess(res, 200, 'Profile updated successfully', { user });
   } catch (e) { next(e); }
 };
 
-// ─── PATCH /profile/change-password ──────────────────────────────────────────
+// â”€â”€â”€ PATCH /profile/change-password â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Zod validation happens in route via validate(changePasswordSchema)
 const changePassword = async (req, res, next) => {
   try {

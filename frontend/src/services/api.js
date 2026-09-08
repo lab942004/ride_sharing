@@ -40,7 +40,8 @@ api.interceptors.response.use(
       } catch {
         refreshPromise = null
         clearAccessToken()
-        window.location.href = '/#/login'
+        // Clean URL (no "#/") — the app now uses history-based routing for SEO.
+        window.location.href = '/login'
       }
     }
     return Promise.reject(err)
@@ -49,9 +50,33 @@ api.interceptors.response.use(
 
 export default api
 
+// ─── User identity formatting ───────────────────────────────────────────────────
+// Centralised helper so every ride card / chat header / profile chip renders a
+// user's identity consistently as "Name · <id>".
+//
+// For SEQUENCE identifiers (auto-generated for general/gmail users) the id is
+// shown with a leading '#' (e.g. `#10042`); for ROLL_OR_EMP_ID identifiers it
+// is shown as-is (e.g. `21103045`).
+
+// Format a single identifier for display.
+export const formatIdentifier = (identifier, identifierType) => {
+  if (identifier == null || identifier === '') return null
+  const t = String(identifierType || '').toUpperCase()
+  return t === 'SEQUENCE' || t === 'SEQUENCE_TYPE'
+    ? `#${identifier}`
+    : `${identifier}`
+}
+
+// Render "Name · ID" for a user object (graceful when data is missing).
+export const userLabel = (user) => {
+  if (!user || !user.name) return '—'
+  const id = formatIdentifier(user.identifier, user.identifierType)
+  return id ? `${user.name} · ${id}` : user.name
+}
+
 // Auth
 export const authAPI = {
-  sendOtp: (email) => api.post('/auth/send-otp', { email }),
+  sendOtp: (email, accountType) => api.post('/auth/send-otp', { email, accountType }),
   verifyOtp: (email, otp) => api.post('/auth/verify-otp', { email, otp }),
   register: (data) => api.post('/auth/register', data),
   login: (email, password) => api.post('/auth/login', { email, password }),

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>You're offline — RideShare</title>
+    <meta name="theme-color" content="#F59E0B" />
+    <style>
+      body {
+        margin: 0;
+        font-family: 'Segoe UI', Arial, sans-serif;
+        background: linear-gradient(135deg, #FFF8E7 0%, #FEF3C7 60%, #FDE68A 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        box-sizing: border-box;
+      }
+      .card {
+        max-width: 420px;
+        width: 100%;
+        background: #fff;
+        border-radius: 20px;
+        box-shadow: 0 8px 40px rgba(0, 0, 0, 0.12);
+        padding: 40px 28px;
+        text-align: center;
+      }
+      .icon { font-size: 56px; }
+      h1 { font-size: 22px; color: #1C1C1C; margin: 16px 0 8px; }
+      p { color: #6B7280; font-size: 15px; line-height: 1.6; margin: 0 0 20px; }
+      .btn {
+        display: inline-block;
+        background: #F59E0B;
+        color: #fff;
+        text-decoration: none;
+        font-weight: 600;
+        padding: 12px 26px;
+        border-radius: 12px;
+        cursor: pointer;
+        border: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="icon">🚗</div>
+      <h1>You're offline</h1>
+      <p>
+        RideShare needs an internet connection to show live rides
+        and messages. Reconnect and try again.
+      </p>
+      <button class="btn" onclick="location.reload()">Retry</button>
+    </div>
+  </body>
+</html>

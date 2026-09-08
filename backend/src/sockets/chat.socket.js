@@ -1,4 +1,4 @@
-const { verifyAccessToken } = require('../utils/jwt.utils');
+﻿const { verifyAccessToken } = require('../utils/jwt.utils');
 const { SOCKET_EVENTS }     = require('../config/constants');
 const prisma                = require('../config/db');
 const { sendPushToUser }    = require('../services/push.service');
@@ -8,12 +8,12 @@ const { sendPushToUser }    = require('../services/push.service');
  *
  * Architecture:
  *  - Each authenticated user joins a personal room: `user_<userId>`
- *    → used for push notifications (new request, request status change)
+ *    â†’ used for push notifications (new request, request status change)
  *  - Chat rooms are: `chat_<requestId>`
- *    → only accessible to the two participants of an accepted request
+ *    â†’ only accessible to the two participants of an accepted request
  */
 const initSocket = (io) => {
-  // ── Authentication middleware ───────────────────────────────────────────────
+  // â”€â”€ Authentication middleware â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   io.use(async (socket, next) => {
     try {
       const token =
@@ -25,7 +25,7 @@ const initSocket = (io) => {
       const decoded = verifyAccessToken(token, 'user');
       const user    = await prisma.user.findUnique({
         where : { id: decoded.id },
-        select: { id: true, name: true, rollNo: true, isVerified: true, isBanned: true, isSuspended: true },
+        select: { id: true, name: true, identifier: true, identifierType: true, isVerified: true, isBanned: true, isSuspended: true },
       });
 
       if (!user || !user.isVerified) return next(new Error('Unauthorized'));
@@ -39,12 +39,12 @@ const initSocket = (io) => {
   });
 
   io.on('connection', (socket) => {
-    console.log(`🔌 [Socket] Connected: ${socket.user.name} (${socket.id})`);
+    console.log(`ðŸ”Œ [Socket] Connected: ${socket.user.name} (${socket.id})`);
 
-    // ── Join personal notification room ───────────────────────────────────────
+    // â”€â”€ Join personal notification room â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     socket.join(`user_${socket.user.id}`);
 
-    // ── join_chat ─────────────────────────────────────────────────────────────
+    // â”€â”€ join_chat â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     socket.on(SOCKET_EVENTS.JOIN_CHAT, async ({ requestId }) => {
       try {
         if (!requestId) {
@@ -75,14 +75,14 @@ const initSocket = (io) => {
           chatId: request.chat?.id,
           room,
         });
-        console.log(`💬 [Socket] ${socket.user.name} joined ${room}`);
+        console.log(`ðŸ’¬ [Socket] ${socket.user.name} joined ${room}`);
       } catch (err) {
         console.error('[Socket] join_chat error:', err.message);
         socket.emit(SOCKET_EVENTS.ERROR, { message: 'Failed to join chat room' });
       }
     });
 
-    // ── send_message ──────────────────────────────────────────────────────────
+    // â”€â”€ send_message â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     socket.on(SOCKET_EVENTS.SEND_MESSAGE, async ({ requestId, text }) => {
       try {
         if (!text?.trim()) {
@@ -124,13 +124,13 @@ const initSocket = (io) => {
 
         const message = await prisma.message.create({
           data   : { chatId: request.chat.id, senderId: socket.user.id, text: text.trim() },
-          include: { sender: { select: { id: true, name: true, rollNo: true } } },
+          include: { sender: { select: { id: true, name: true, identifier: true, identifierType: true } } },
         });
 
         // Emit to all in the chat room (including sender for confirmation)
         io.to(`chat_${requestId}`).emit(SOCKET_EVENTS.NEW_MESSAGE, message);
 
-        // ── Web push notification to the other participant (non-blocking) ─────
+        // â”€â”€ Web push notification to the other participant (non-blocking) â”€â”€â”€â”€â”€
         const recipientId =
           request.requesterId === socket.user.id
             ? request.rideCreatorId
@@ -139,7 +139,7 @@ const initSocket = (io) => {
         sendPushToUser(recipientId, {
           title: `New message from ${socket.user.name}`,
           body : text.trim().slice(0, 120),
-          url  : '/#/chat',
+          url  : '/chat',
         }).catch((err) => console.error('Push notification failed:', err.message));
       } catch (err) {
         console.error('[Socket] send_message error:', err.message);
@@ -147,9 +147,9 @@ const initSocket = (io) => {
       }
     });
 
-    // ── typing indicators ─────────────────────────────────────────────────────
+    // â”€â”€ typing indicators â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // SECURITY: only broadcast if this socket has actually joined the room via
-    // the participant-checked `join_chat` handler above — otherwise any
+    // the participant-checked `join_chat` handler above â€” otherwise any
     // authenticated user who merely knows/guesses a requestId could spoof a
     // typing indicator into a chat they're not part of.
     socket.on(SOCKET_EVENTS.TYPING, ({ requestId }) => {
@@ -168,16 +168,16 @@ const initSocket = (io) => {
       });
     });
 
-    // ── leave_chat ────────────────────────────────────────────────────────────
+    // â”€â”€ leave_chat â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     socket.on(SOCKET_EVENTS.LEAVE_CHAT, ({ requestId }) => {
       const room = `chat_${requestId}`;
       socket.leave(room);
-      console.log(`💬 [Socket] ${socket.user.name} left ${room}`);
+      console.log(`ðŸ’¬ [Socket] ${socket.user.name} left ${room}`);
     });
 
-    // ── disconnect ────────────────────────────────────────────────────────────
+    // â”€â”€ disconnect â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     socket.on('disconnect', (reason) => {
-      console.log(`🔌 [Socket] Disconnected: ${socket.user?.name} — ${reason}`);
+      console.log(`ðŸ”Œ [Socket] Disconnected: ${socket.user?.name} â€” ${reason}`);
     });
   });
 };

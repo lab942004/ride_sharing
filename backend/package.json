@@ -1,7 +1,7 @@
 {
   "name": "ride_share",
   "version": "1.0.0",
-  "description": "Closed-community ride-sharing platform for NIT Kurukshetra",
+  "description": "Multi-organization ride-sharing and carpooling platform for colleges and companies",
   "main": "src/server.js",
   "scripts": {
     "prisma:generate": "prisma generate",
@@ -22,12 +22,13 @@
     "dotenv": "^16.6.1",
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
+    "ioredis": "^5.4.1",
+    "rate-limit-redis": "^4.3.1",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
     "multer": "^2.1.1",
     "node-cron": "^4.6.0",
-    "nodemailer": "^9.0.3",
     "socket.io": "^4.8.1",
     "web-push": "^3.6.7",
     "zod": "^3.24.3"

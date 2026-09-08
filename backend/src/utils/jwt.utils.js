@@ -19,10 +19,70 @@ const USER_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
 const ADMIN_ACCESS_SECRET  = process.env.JWT_ADMIN_SECRET || `${process.env.JWT_SECRET}::admin`;
 const ADMIN_REFRESH_SECRET = process.env.JWT_ADMIN_REFRESH_SECRET || `${process.env.JWT_REFRESH_SECRET}::admin`;
 
-const secretsFor = (type) =>
-  type === 'admin'
+/**
+ * SECURITY: fail fast on secret misconfiguration instead of running with an
+ * empty/weak signing key. In production a missing/short JWT secret must abort
+ * startup — silently generating tokens with a predictable key would be a
+ * critical account-takeover vulnerability (attackers could forge their own
+ * access tokens). In development we warn but continue with the derived
+ * fallback so the app "just works" out of the box.
+ */
+const assertSecret = (name, value, minLength = 32) => {
+  if (value && value.length >= minLength) return;
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      `[FATAL] ${name} is missing or shorter than ${minLength} characters. ` +
+      'Set a strong, unique secret in backend/.env before starting in production. ' +
+      'See backend/.env.example.'
+    );
+  }
+  console.warn(
+    `⚠️  ${name} is missing or too short — running in DEV with a derived/fallback key. ` +
+    'Generate a 32+ char random value (e.g. `openssl rand -base64 48`) and add it to .env.'
+  );
+};
+
+assertSecret('JWT_SECRET', USER_ACCESS_SECRET);
+assertSecret('JWT_REFRESH_SECRET', USER_REFRESH_SECRET);
+
+// In production, admin secrets MUST be set to DISTINCT real values (not the
+// deterministic "::admin" fallback) so that a compromise of one tier's secret
+// can never forge tokens for the other.
+if (process.env.NODE_ENV === 'production') {
+  assertSecret('JWT_ADMIN_SECRET', ADMIN_ACCESS_SECRET);
+  assertSecret('JWT_ADMIN_REFRESH_SECRET', ADMIN_REFRESH_SECRET);
+  if (!process.env.JWT_ADMIN_SECRET || !process.env.JWT_ADMIN_REFRESH_SECRET) {
+    throw new Error(
+      '[FATAL] The derived admin-secret fallback is NOT allowed in production. ' +
+      'Set JWT_ADMIN_SECRET and JWT_ADMIN_REFRESH_SECRET to values DIFFERENT from the ' +
+      'user JWT_SECRET/JWT_REFRESH_SECRET. See backend/.env.example.'
+    );
+  }
+  if (ADMIN_ACCESS_SECRET === USER_ACCESS_SECRET || ADMIN_REFRESH_SECRET === USER_REFRESH_SECRET) {
+    throw new Error(
+      '[FATAL] JWT_ADMIN_SECRET / JWT_ADMIN_REFRESH_SECRET must be DIFFERENT from the ' +
+      'user secrets in production. See backend/.env.example.'
+    );
+  }
+}
+
+const secretsFor = (type) => {
+  const secrets = type === 'admin'
     ? { access: ADMIN_ACCESS_SECRET, refresh: ADMIN_REFRESH_SECRET }
     : { access: USER_ACCESS_SECRET, refresh: USER_REFRESH_SECRET };
+
+  // Guard against jsonwebtoken's obscure "secretOrPrivateKey must have a value"
+  // error: give a clear message instead. (User secrets must always be present;
+  // admin secrets may be null only outside production, where jsonwebtoken would
+  // still throw because null/undefined is not a valid key.)
+  if (!secrets.access || !secrets.refresh) {
+    throw new Error(
+      `[FATAL] ${type === 'admin' ? 'JWT_ADMIN_SECRET' : 'JWT_SECRET'} family is not configured. ` +
+      'Set the JWT_* secrets in backend/.env (see backend/.env.example).'
+    );
+  }
+  return secrets;
+};
 
 /**
  * Parse duration strings like '7d', '15m', '2h' into milliseconds.

@@ -61,13 +61,13 @@ Send a 6-digit OTP to a college email for email verification.
 **Request Body**
 ```json
 {
-  "email": "21cs001@nitkkr.ac.in"
+  "email": "student1@yourcollege.edu"
 }
 ```
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| `email` | string | ✅ | Must be an allowed domain (`@nitkkr.ac.in`) |
+| `email` | string | ✅ | Must be an allowed domain (`@yourcollege.edu`) |
 
 **Response 200**
 ```json
@@ -90,7 +90,7 @@ Verify the OTP. Creates a 30-minute window to complete registration.
 **Request Body**
 ```json
 {
-  "email": "21cs001@nitkkr.ac.in",
+  "email": "student1@yourcollege.edu",
   "otp": "483920"
 }
 ```
@@ -123,7 +123,7 @@ Create a new account. Requires prior OTP verification (within 30 minutes).
 {
   "name": "Rahul Sharma",
   "rollNo": "21CS001",
-  "email": "21cs001@nitkkr.ac.in",
+  "email": "student1@yourcollege.edu",
   "password": "SecurePass@123",
   "phone": "9876543210"
 }
@@ -146,9 +146,9 @@ Create a new account. Requires prior OTP verification (within 30 minutes).
     "user": {
       "id": "uuid",
       "name": "Rahul Sharma",
-      "email": "21cs001@nitkkr.ac.in",
+      "email": "student1@yourcollege.edu",
       "rollNo": "21CS001",
-      "domain": "nitkkr.ac.in",
+      "domain": "yourcollege.edu",
       "phone": "9876543210"
     },
     "accessToken": "<jwt>",
@@ -170,7 +170,7 @@ Authenticate with email and password.
 **Request Body**
 ```json
 {
-  "email": "21cs001@nitkkr.ac.in",
+  "email": "student1@yourcollege.edu",
   "password": "SecurePass@123"
 }
 ```
@@ -184,9 +184,9 @@ Authenticate with email and password.
     "user": {
       "id": "uuid",
       "name": "Rahul Sharma",
-      "email": "21cs001@nitkkr.ac.in",
+      "email": "student1@yourcollege.edu",
       "rollNo": "21CS001",
-      "domain": "nitkkr.ac.in",
+      "domain": "yourcollege.edu",
       "phone": "9876543210"
     },
     "accessToken": "<jwt>",
@@ -249,7 +249,7 @@ Initiate password reset. Sends an OTP to the registered email. Always returns th
 
 **Request Body**
 ```json
-{ "emailOrPhone": "21cs001@nitkkr.ac.in" }
+{ "emailOrPhone": "student1@yourcollege.edu" }
 ```
 
 **Response 200**
@@ -269,7 +269,7 @@ Reset password using the OTP from `forgot-password`.
 **Request Body**
 ```json
 {
-  "email": "21cs001@nitkkr.ac.in",
+  "email": "student1@yourcollege.edu",
   "otp": "382910",
   "newPassword": "NewSecurePass@456"
 }
@@ -301,9 +301,9 @@ Return the authenticated user's profile from the JWT.
     "user": {
       "id": "uuid",
       "name": "Rahul Sharma",
-      "email": "21cs001@nitkkr.ac.in",
+      "email": "student1@yourcollege.edu",
       "rollNo": "21CS001",
-      "domain": "nitkkr.ac.in"
+      "domain": "yourcollege.edu"
     }
   }
 }
@@ -324,8 +324,8 @@ Create a new ride.
 **Request Body**
 ```json
 {
-  "from": "NIT Kurukshetra Gate 1",
-  "to": "Kurukshetra Railway Station",
+  "from": "NIT yourcity Gate 1",
+  "to": "yourcity Railway Station",
   "date": "2024-03-20",
   "time": "14:30",
   "vehicleType": "Car",
@@ -350,15 +350,15 @@ Create a new ride.
   "data": {
     "ride": {
       "id": "uuid",
-      "from": "NIT Kurukshetra Gate 1",
-      "to": "Kurukshetra Railway Station",
+      "from": "NIT yourcity Gate 1",
+      "to": "yourcity Railway Station",
       "date": "2024-03-20T00:00:00.000Z",
       "time": "14:30",
       "vehicleType": "Car",
       "availableSeats": 3,
       "isFull": false,
       "isExpired": false,
-      "domain": "nitkkr.ac.in",
+      "domain": "yourcollege.edu",
       "createdById": "uuid",
       "createdAt": "2024-03-15T10:00:00.000Z"
     }
@@ -695,9 +695,9 @@ Fetch the authenticated user's profile with ride and request counts.
       "id": "uuid",
       "name": "Rahul Sharma",
       "rollNo": "21CS001",
-      "email": "21cs001@nitkkr.ac.in",
+      "email": "student1@yourcollege.edu",
       "phone": "9876543210",
-      "domain": "nitkkr.ac.in",
+      "domain": "yourcollege.edu",
       "isVerified": true,
       "createdAt": "2024-01-10T00:00:00.000Z",
       "_count": {
@@ -735,9 +735,9 @@ Pass `"phone": null` to remove the phone number.
       "id": "uuid",
       "name": "Rahul K. Sharma",
       "rollNo": "21CS001",
-      "email": "21cs001@nitkkr.ac.in",
+      "email": "student1@yourcollege.edu",
       "phone": "9123456789",
-      "domain": "nitkkr.ac.in"
+      "domain": "yourcollege.edu"
     }
   }
 }

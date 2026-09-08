@@ -1,6 +1,6 @@
-# 🚗 RideShare — NIT Kurukshetra Backend
+# 🚗 RideShare Backend
 
-A production-ready, closed-community ride-sharing REST API for college students, built with **Node.js + Express + PostgreSQL + Prisma + Socket.io**.
+A production-ready, multi-organization ride-sharing REST API for colleges and companies, built with **Node.js + Express + PostgreSQL + Prisma + Socket.io**.
 
 ---
 
@@ -90,8 +90,8 @@ npx prisma generate
 ### 4. (Optional) Seed the database
 ```bash
 npm run seed
-# Creates: test1@nitkkr.ac.in / Student@123
-#          test2@nitkkr.ac.in / Student@123
+# Creates: test1@yourcollege.edu / Student@123
+#          test2@yourcollege.edu / Student@123
 ```
 
 ### 5. Start the server
@@ -230,5 +230,5 @@ See `.env.example` for all variables with descriptions.
 - `JWT_SECRET` (≥ 32 chars)
 - `JWT_REFRESH_SECRET` (≥ 32 chars)
 - Either `RESEND_API_KEY` **or** `SMTP_USER` + `SMTP_PASS`
-- `ALLOWED_DOMAINS` (e.g., `nitkkr.ac.in`)
+- `ALLOWED_DOMAINS` (e.g., `yourcollege.edu`)
 - `FRONTEND_URL`

@@ -7,6 +7,7 @@ import AdContainer from '../components/ads/AdContainer'
 import { useAuth } from '../context/AuthContext'
 import { RIDES_POLL_INTERVAL_MS } from '../config/constants'
 import { ADSENSE } from '../config/adsense'
+import { usePageMeta } from '../hooks/usePageMeta'
 
 const testimonials = [
   {
@@ -20,13 +21,21 @@ const testimonials = [
     side: 'left',
   },
   {
-    text: "Looking for a ride from NIT Kurukshetra to Delhi at 5 PM. Will share fuel cost and travel comfortably.",
+    text: "Looking for a ride from [My Campus] to [Destination] at [Time]. Will share fuel cost and travel comfortably.",
     emoji: '🛺',
     side: 'right',
   },
 ]
 
 export default function Home() {
+  usePageMeta({
+    title: 'Share & Find Rides — Carpooling for Your College or Company',
+    description:
+      'Find or post shared rides with verified members of your college or company community. Carpool to nearby cities — split fuel costs, chat with your ride partner and travel together safely.',
+    keywords: 'ride sharing, carpool, find a ride, post a ride, share cab, campus carpool, cheap travel, ride to Delhi, carpool platform India',
+    path: '/',
+  })
+
   const [rides, setRides] = useState([])
   const [loading, setLoading] = useState(false)
   const [filter, setFilter] = useState({ to: '', from: '', date: '' })
@@ -111,12 +120,17 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-6 py-16 w-full relative z-10">
+        <div className="max-w-7xl mx-auto px-app py-10 sm:py-16 w-full relative z-10">
           <div className="max-w-xl">
             <h1 className="font-display text-4xl md:text-5xl font-bold text-charcoal leading-tight">
-              Welcome! Connect with your college community, share rides, and travel together —{' '}
-              <span className="text-primary">smarter, safer, and more affordable.</span>
+              Share rides with your college or company community —<br className="hidden md:block" />{' '}
+              <span className="text-primary">smarter, safer and more affordable.</span>
             </h1>
+            <p className="mt-4 text-muted text-base md:text-lg font-body leading-relaxed">
+              The ride-sharing and carpooling platform for your community. Post a ride,
+              split fuel costs with verified members, and travel together to nearby cities
+              and beyond.
+            </p>
 
             {!user && (
               <button
@@ -162,7 +176,7 @@ export default function Home() {
 
       {/* ── RIDE LISTINGS ─────────────────────────────────────────── */}
       {user && (
-        <section className="max-w-7xl mx-auto px-6 py-14">
+        <section className="max-w-7xl mx-auto px-app py-section">
           {loading ? (
             <div className="flex justify-center py-20">
               <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
@@ -206,7 +220,7 @@ export default function Home() {
 
       {/* ── TESTIMONIALS (unauthenticated) ───────────────────────── */}
       {!user && (
-        <section className="max-w-5xl mx-auto px-6 py-20">
+        <section className="max-w-5xl mx-auto px-app py-16 sm:py-20">
           <div className="space-y-20">
             {testimonials.map((t, i) => (
               <div

@@ -16,16 +16,27 @@ const { z } = require('zod');
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email'),
-  password: z.string().min(6, 'Password too short'),
+
+  // SECURITY: bound the length even on admin login — bcrypt is intentionally
+  // slow, so without a max an attacker could send gigabyte strings to exhaust
+  // CPU. 128 is the same limit enforced everywhere else in the app.
+  password: z.string().min(6, 'Password too short').max(128, 'Password must not exceed 128 characters'),
 });
 
 const refreshSchema = z.object({
-  refreshToken: z.string().optional(), // primarily read from the httpOnly cookie now
+  refreshToken: z.string().max(1000, 'Token is too long').optional(), // primarily read from the httpOnly cookie now
 });
 
 const changePasswordSchema = z.object({
-  currentPassword: z.string().min(1, 'Current password required'),
-  newPassword: z.string().min(6, 'New password must be at least 6 characters'),
+  currentPassword: z.string().min(1, 'Current password required').max(128, 'Password must not exceed 128 characters'),
+  newPassword: z
+    .string()
+    .min(8, 'New password must be at least 8 characters')
+    .max(128, 'New password must not exceed 128 characters')
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+      'Password must contain at least one uppercase letter, one lowercase letter, and one number'
+    ),
 });
 
 const updateProfileSchema = z.object({

@@ -1,6 +1,6 @@
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router'
-import { requestsAPI } from '../services/api'
+import { requestsAPI, userLabel } from '../services/api'
 import { useToast } from '../context/ToastContext'
 import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
@@ -75,8 +75,8 @@ export default function RideCard({ ride, showActions = true, onDelete }) {
             </span>
           )}
         </div>
-        <span className="text-xs text-muted font-mono font-semibold">
-          ID: {ride.createdBy?.rollNo || '—'}
+        <span className="text-xs text-muted font-mono font-semibold truncate">
+          {ride.createdBy ? userLabel(ride.createdBy) : '—'}
         </span>
       </div>
 

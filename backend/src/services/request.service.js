@@ -1,4 +1,4 @@
-const prisma = require('../config/db');
+﻿const prisma = require('../config/db');
 const { sendRideRequestEmail, sendRequestStatusEmail } = require('./email.service');
 const { isRideExpired, hasChatDisappeared } = require('../utils/rideTime.utils');
 const { SOCKET_EVENTS } = require('../config/constants');
@@ -6,25 +6,28 @@ const { sendPushToUser } = require('./push.service');
 
 const appError = (msg, code = 400) => Object.assign(new Error(msg), { statusCode: code });
 
-// ─── Create Request ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Create Request â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 /**
  * Guard conditions:
- *  - Ride must exist and belong to the same domain
+ *  - Ride must exist and belong to the same domain (requesterDomain vs ride.domain
+ *    is explicitly re-checked here — never trust that a caller-supplied rideId
+ *    already belongs to the caller's domain)
  *  - Cannot request own ride
  *  - Ride must not be full
- *  - Ride departure must not have passed  ← KEY FIX
+ *  - Ride departure must not have passed  â† KEY FIX
  *  - User cannot have an existing request for this ride
  */
-const createRequest = async (requesterId, rideId, io = null) => {
+const createRequest = async (requesterId, requesterDomain, rideId, io = null) => {
   const ride = await prisma.ride.findUnique({
     where  : { id: rideId },
     include: { createdBy: { select: { id: true, name: true, email: true } } },
   });
 
   if (!ride)                          throw appError('Ride not found', 404);
+  if (ride.domain !== requesterDomain) throw appError('Ride not found', 404);
   if (ride.createdById === requesterId) throw appError('You cannot request your own ride', 400);
 
-  // ── Expired ride check ────────────────────────────────────────────────────
+  // â”€â”€ Expired ride check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (ride.isExpired || isRideExpired(ride.date, ride.time)) {
     throw appError('This ride has already departed. You cannot request it.', 400);
   }
@@ -33,7 +36,7 @@ const createRequest = async (requesterId, rideId, io = null) => {
     throw appError('This ride is fully booked', 400);
   }
 
-  // ── Duplicate request check ───────────────────────────────────────────────
+  // â”€â”€ Duplicate request check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const existing = await prisma.request.findFirst({ where: { rideId, requesterId } });
   if (existing) {
     throw appError(
@@ -46,11 +49,11 @@ const createRequest = async (requesterId, rideId, io = null) => {
     data   : { rideId, requesterId, rideCreatorId: ride.createdById },
     include: {
       ride    : true,
-      requester: { select: { id: true, name: true, email: true, rollNo: true, profilePic: true } },
+      requester: { select: { id: true, name: true, email: true, identifier: true, identifierType: true, profilePic: true } },
     },
   });
 
-  // ── Real-time socket notification to ride owner ───────────────────────────
+  // â”€â”€ Real-time socket notification to ride owner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (io) {
     io.to(`user_${ride.createdById}`).emit(SOCKET_EVENTS.NEW_REQUEST, {
       request,
@@ -58,26 +61,26 @@ const createRequest = async (requesterId, rideId, io = null) => {
     });
   }
 
-  // ── Email notification (non-blocking) ────────────────────────────────────
+  // â”€â”€ Email notification (non-blocking) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   sendRideRequestEmail(
     ride.createdBy.email,
     ride.createdBy.name,
     request.requester.name,
-    request.requester.rollNo,
+    request.requester.identifier,
     ride
   ).catch((err) => console.error('Email notification failed:', err.message));
 
-  // ── Web push notification to ride owner (non-blocking) ───────────────────
+  // â”€â”€ Web push notification to ride owner (non-blocking) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   sendPushToUser(ride.createdById, {
     title: 'New ride request',
-    body : `${request.requester.name} (${request.requester.rollNo}) wants to join your ride from ${ride.from} to ${ride.to}`,
-    url  : '/#/request',
+    body : `${request.requester.name} (${request.requester.identifier}) wants to join your ride from ${ride.from} to ${ride.to}`,
+    url  : '/request',
   }).catch((err) => console.error('Push notification failed:', err.message));
 
   return request;
 };
 
-// ─── Get Requests ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ Get Requests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 /**
  * Returns two arrays:
  *  - sent:     requests the current user sent as a requester
@@ -90,11 +93,11 @@ const getRequests = async (userId) => {
       include: {
         ride: {
           include: {
-            createdBy: { select: { id: true, name: true, rollNo: true, phone: true, profilePic: true } },
+            createdBy: { select: { id: true, name: true, identifier: true, identifierType: true, phone: true, profilePic: true } },
           },
         },
-        requester: {select: {id: true, name: true, rollNo: true, email: true, phone: true, profilePic: true}},
-        rideCreator: {select: {id: true, name: true, rollNo: true, phone: true, profilePic: true}},
+        requester: {select: {id: true, name: true, identifier: true, identifierType: true, email: true, phone: true, profilePic: true}},
+        rideCreator: {select: {id: true, name: true, identifier: true, identifierType: true, phone: true, profilePic: true}},
       },
       orderBy: { createdAt: 'desc' },
     }),
@@ -102,8 +105,8 @@ const getRequests = async (userId) => {
       where  : { rideCreatorId: userId },
       include: {
         ride    : true,
-        requester: { select: { id: true, name: true, rollNo: true, email: true, phone: true, profilePic: true } },
-        rideCreator: { select: {id: true, name: true, rollNo: true, phone: true, profilePic: true}},
+        requester: { select: { id: true, name: true, identifier: true, identifierType: true, email: true, phone: true, profilePic: true } },
+        rideCreator: { select: {id: true, name: true, identifier: true, identifierType: true, phone: true, profilePic: true}},
       },
       orderBy: { createdAt: 'desc' },
     }),
@@ -111,7 +114,7 @@ const getRequests = async (userId) => {
 
   // An ACCEPTED request's chat disappears CHAT_DISAPPEAR_DAYS after the ride
   // departed. Non-accepted requests (PENDING/REJECTED) aren't chats and are
-  // unaffected — only filter the ones this actually applies to.
+  // unaffected â€” only filter the ones this actually applies to.
   const dropDisappearedChats = (r) =>
     r.status !== 'ACCEPTED' || !hasChatDisappeared(r.ride.date, r.ride.time);
 
@@ -121,7 +124,7 @@ const getRequests = async (userId) => {
   };
 };
 
-// ─── Update Request Status ────────────────────────────────────────────────────
+// â”€â”€â”€ Update Request Status â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 /**
  * Accept / Reject a request.
  *  - Only ride creator can update
@@ -143,7 +146,7 @@ const updateRequestStatus = async (requestId, userId, status, io = null) => {
 
   const updatedRequest = await prisma.$transaction(async (tx) => {
     if (status === 'ACCEPTED') {
-      // ── Atomic, race-safe seat decrement ──────────────────────────────────
+      // â”€â”€ Atomic, race-safe seat decrement â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       // Guard the decrement with a WHERE clause so two concurrent "accept"
       // calls on the same ride can't both succeed when only one seat is left
       // (a plain `update` with `decrement: 1` has no such guard and can drive
@@ -169,7 +172,7 @@ const updateRequestStatus = async (requestId, userId, status, io = null) => {
     return updated;
   });
 
-  // ── Real-time notification to requester ───────────────────────────────────
+  // â”€â”€ Real-time notification to requester â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (io) {
     io.to(`user_${request.requesterId}`).emit(SOCKET_EVENTS.REQUEST_STATUS, {
       requestId,
@@ -179,7 +182,7 @@ const updateRequestStatus = async (requestId, userId, status, io = null) => {
     });
   }
 
-  // ── Email notification (non-blocking) ────────────────────────────────────
+  // â”€â”€ Email notification (non-blocking) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   sendRequestStatusEmail(
     request.requester.email,
     request.requester.name,
@@ -188,17 +191,17 @@ const updateRequestStatus = async (requestId, userId, status, io = null) => {
     request.ride.createdBy.name
   ).catch((err) => console.error('Email notification failed:', err.message));
 
-  // ── Web push notification to requester (non-blocking) ────────────────────
+  // â”€â”€ Web push notification to requester (non-blocking) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   sendPushToUser(request.requesterId, {
     title: `Request ${status.toLowerCase()}`,
-    body : `Your request to join ${request.ride.from} → ${request.ride.to} was ${status.toLowerCase()} by ${request.ride.createdBy.name}`,
-    url  : '/#/request',
+    body : `Your request to join ${request.ride.from} â†’ ${request.ride.to} was ${status.toLowerCase()} by ${request.ride.createdBy.name}`,
+    url  : '/request',
   }).catch((err) => console.error('Push notification failed:', err.message));
 
   return updatedRequest;
 };
 
-// ─── Share Phone Number ───────────────────────────────────────────────────────
+// â”€â”€â”€ Share Phone Number â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 /**
  * Both the ride creator AND the requester must individually confirm before
  * phone numbers are revealed. Uses two boolean columns on Request.
@@ -254,7 +257,7 @@ const sharePhone = async (requestId, userId) => {
   };
 };
 
-// ─── Delete Request (and associated chat) ─────────────────────────────────
+// â”€â”€â”€ Delete Request (and associated chat) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const deleteRequest = async (requestId, userId) => {
   const request = await prisma.request.findUnique({
     where: { id: requestId },

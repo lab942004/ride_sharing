@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
-import { requestsAPI, chatAPI } from '../services/api'
+import { requestsAPI, chatAPI, userLabel, formatIdentifier } from '../services/api'
 import { useToast } from '../context/ToastContext'
 import { useNavigate } from 'react-router'
 import { format } from 'date-fns'
 import { hasChatDisappeared } from '../utils/rideTime'
 import AdContainer from '../components/ads/AdContainer'
 import { ADSENSE } from '../config/adsense'
+import { usePageMeta } from '../hooks/usePageMeta'
 
 function RequestCard({ request, onAccept, onReject, viewType }) {
   const navigate = useNavigate()
@@ -32,8 +33,8 @@ function RequestCard({ request, onAccept, onReject, viewType }) {
         }`}>
           {(request.status || 'pending').toUpperCase()}
         </span>
-        <span className="text-xs text-muted font-mono font-semibold">
-          ID: {requester?.rollNo || ride?.createdBy?.rollNo || '—'}
+                <span className="text-xs text-muted font-mono font-semibold truncate">
+          {requester ? userLabel(requester) : (ride?.createdBy ? userLabel(ride.createdBy) : '—')}
         </span>
       </div>
 
@@ -60,9 +61,9 @@ function RequestCard({ request, onAccept, onReject, viewType }) {
       {/* Requester info (incoming) */}
       {isIncoming && (
         <div className="px-5 pb-2 text-xs text-muted border-t border-gray-50 pt-2">
-          Requested by:{' '}
+                    Requested by:{' '}
           <span className="font-semibold text-charcoal">{requester?.name}</span>
-          {requester?.rollNo && <span> · {requester.rollNo}</span>}
+          {requester?.identifier && <span> · {formatIdentifier(requester.identifier, requester.identifierType)}</span>}
         </div>
       )}
 
@@ -104,6 +105,14 @@ function RequestCard({ request, onAccept, onReject, viewType }) {
 }
 
 export default function Request() {
+  usePageMeta({
+    title: 'My Ride Requests',
+    description:
+      'Manage your incoming and outgoing ride requests — accept or reject requests to join your carpool, or track the status of rides you asked to join.',
+    keywords: 'ride requests, accept ride request, join carpool, ride matchmaking, campus rides',
+    path: '/request',
+  })
+
   const [tab, setTab] = useState('incoming')
   const [incoming, setIncoming] = useState([])
   const [outgoing, setOutgoing] = useState([])

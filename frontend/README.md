@@ -1,6 +1,6 @@
-# RideShare Frontend — NIT Kurukshetra
+# RideShare Frontend
 
-A React + Vite + Tailwind CSS frontend for the RideShare closed-community platform.
+A React + Vite + Tailwind CSS frontend for the RideShare multi-organization ride-sharing platform.
 
 ## Tech Stack
 - **React 18** + **Vite**
@@ -54,7 +54,7 @@ For production, configure your web server (nginx/etc.) accordingly.
 - **Font body**: DM Sans (body text)
 
 ## Key Features
-- College email validation (`@nitkkr.ac.in` only)
+- College email validation (`@yourcollege.edu` only)
 - JWT access + refresh token management
 - Real-time chat via Socket.io
 - Responsive design (mobile-first)

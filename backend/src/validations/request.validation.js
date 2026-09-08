@@ -52,7 +52,9 @@ const updateProfileSchema = z
  */
 const changePasswordSchema = z
   .object({
-    currentPassword: z.string({ required_error: 'Current password is required' }),
+    currentPassword: z
+      .string({ required_error: 'Current password is required' })
+      .max(128, 'Current password must not exceed 128 characters'),
     newPassword    : z
       .string({ required_error: 'New password is required' })
       .min(8, 'Password must be at least 8 characters')

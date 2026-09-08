@@ -2,9 +2,10 @@ import { useEffect, useRef } from 'react'
 import { pushAPI } from '../services/api'
 
 /**
- * Registers the service worker and subscribes the logged-in user to
- * web push notifications. Runs once per login (guarded by a ref so it
- * doesn't re-fire on every render).
+ * Ensures the service worker is registered (reusing the one from main.jsx
+ * in production) and subscribes the logged-in user to web push
+ * notifications. Runs once per login (guarded by a ref so it doesn't
+ * re-fire on every render).
  */
 export default function usePushNotifications(enabled) {
   const startedRef = useRef(false)
@@ -27,9 +28,13 @@ export default function usePushNotifications(enabled) {
         return
       }
 
-      // 2. Register the service worker
+      // 2. Reuse the service worker registered on page load (main.jsx, prod)
+      // or register it ourselves in dev, where main.jsx deliberately skips it.
+      let registration
       try {
-        await navigator.serviceWorker.register('/sw.js')
+        registration =
+          (await navigator.serviceWorker.getRegistration()) ??
+          (await navigator.serviceWorker.register('/sw.js'))
       } catch (err) {
         console.error('[push] Service worker registration failed:', err)
         return
@@ -51,8 +56,8 @@ export default function usePushNotifications(enabled) {
 
       // 4. Request permission + subscribe
       try {
-        const registration = await navigator.serviceWorker.ready
-        const subscription = await registration.pushManager.subscribe({
+        const active = await navigator.serviceWorker.ready
+        const subscription = await active.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(publicKey),
         })

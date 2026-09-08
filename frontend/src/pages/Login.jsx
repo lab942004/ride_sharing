@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router'
 import { authAPI } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
+import { usePageMeta } from '../hooks/usePageMeta'
 
 /* ── Shared auth layout — creamy background with illustrated decorations ── */
 export function AuthLayout({ children, title }) {
@@ -39,8 +40,9 @@ export function AuthLayout({ children, title }) {
           <circle cx="290" cy="150" r="28" fill="#A7F3D0" opacity="0.4"/>
         </svg>
         <div className="absolute bottom-8 left-0 right-0 text-center">
+          <img src="/logo.png" alt="RideShare logo" className="w-14 h-14 rounded-2xl object-cover mx-auto" />
           <p className="font-display text-2xl font-bold text-charcoal">RideShare</p>
-          <p className="text-muted text-sm mt-1">NIT Kurukshetra</p>
+          <p className="text-muted text-sm mt-1">Share rides with your community</p>
         </div>
       </div>
 
@@ -58,6 +60,14 @@ export function AuthLayout({ children, title }) {
 }
 
 export default function Login() {
+  usePageMeta({
+    title: 'Log In',
+    description:
+      'Log in to RideShare to find or publish a shared ride, chat with your ride partner and coordinate your next college carpool.',
+    keywords: 'login RideShare, carpool login, ride sharing sign in, campus ride share',
+    path: '/login',
+  })
+
   const [form, setForm] = useState({ email: '', password: '' })
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)

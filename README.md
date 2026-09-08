@@ -1,6 +1,6 @@
-# RideShare NIT KKR
+# RideShare
 
-A **closed-community ride-sharing platform** exclusively for NIT Kurukshetra students and staff. Users can create rides, send/accept requests, and coordinate via real-time chat — all gated behind a verified college email (`@nitkkr.ac.in`).
+A **multi-organization ride-sharing platform** for colleges and companies. Users can create rides, send/accept requests, and coordinate via real-time chat — gated behind verified organization email domains (or general accounts for gmail.com users).
 
 ---
 
@@ -145,7 +145,7 @@ All variables live in `backend/.env`. Copy `backend/.env.example` and fill in th
 | `SMTP_PASS` | optional | Fallback SMTP password / App Password |
 | `PORT` | optional | Backend port (default `5000`) |
 | `NODE_ENV` | optional | `development` \| `production` |
-| `ALLOWED_DOMAINS` | ✅ | Comma-separated allowed email domains (e.g. `nitkkr.ac.in`) |
+| `ALLOWED_DOMAINS` | ✅ | Comma-separated allowed email domains (e.g. `yourcollege.edu`) |
 | `FRONTEND_URL` | ✅ | Frontend origin for CORS (e.g. `http://localhost:5173`) |
 | `RATE_LIMIT_WINDOW_MS` | optional | Rate limit window in ms (default `900000` = 15 min) |
 | `RATE_LIMIT_MAX` | optional | Max requests per window (default `100`) |
@@ -180,7 +180,7 @@ All variables live in `backend/.env`. Copy `backend/.env.example` and fill in th
 
 ## Key Features
 
-- **Email-gated access** — only `@nitkkr.ac.in` addresses can register
+- **Email-gated access** — only `@yourcollege.edu` addresses can register
 - **OTP verification** — email OTP required before account creation and password reset
 - **JWT auth** — short-lived access tokens (15 min) with rotating refresh tokens (7 days); server-side revocation via DB
 - **Ride management** — create rides with date/time/vehicle/seats, auto-expire past rides via cron
@@ -250,4 +250,4 @@ See [`docs/api.md`](docs/api.md) for the complete REST API documentation with re
 
 ## License
 
-MIT © NIT Kurukshetra RideShare Project
+MIT © NIT yourcity RideShare Project

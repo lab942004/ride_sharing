@@ -3,8 +3,17 @@ import { useNavigate } from 'react-router'
 import { authAPI } from '../services/api'
 import { useToast } from '../context/ToastContext'
 import { AuthLayout } from './Login'
+import { usePageMeta } from '../hooks/usePageMeta'
 
 export default function ForgotPassword() {
+  usePageMeta({
+    title: 'Reset Password',
+    description:
+      'Reset your RideShare password securely with a one-time OTP sent to your registered college email.',
+    keywords: 'forgot password RideShare, reset carpool password, account recovery',
+    path: '/forgot-password',
+  })
+
   const [step, setStep] = useState(1) // 1=email, 2=otp+newpassword
   const [emailOrPhone, setEmailOrPhone] = useState('')
   const [email, setEmail] = useState('') // actual email for reset

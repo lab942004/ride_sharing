@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, memo } from 'react'
 import { useLocation } from 'react-router'
 import { chatAPI, requestsAPI } from '../services/api'
 import { useToast } from '../context/ToastContext'
@@ -6,8 +6,9 @@ import { useAuth } from '../context/AuthContext'
 import { getSocket } from '../services/socket'
 import { format } from 'date-fns'
 import { isChatExpired, hasChatDisappeared } from '../utils/rideTime'
+import { usePageMeta } from '../hooks/usePageMeta'
 
-function ChatBubble({ msg, isMe }) {
+const ChatBubble = memo(function ChatBubble({ msg, isMe }) {
   return (
     <div className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
       <div className={isMe ? 'chat-bubble-right' : 'chat-bubble-left'}>
@@ -18,7 +19,7 @@ function ChatBubble({ msg, isMe }) {
       </div>
     </div>
   )
-}
+})
 
 // function ConversationItem({ req, active, onClick }) {
 //   const ride = req.ride
@@ -41,7 +42,7 @@ function ChatBubble({ msg, isMe }) {
 //   )
 // }
 
-function ConversationItem({ req, active, onClick, currentUser }) {
+const ConversationItem = memo(function ConversationItem({ req, active, onClick, currentUser }) {
   const ride = req.ride
 
   const other =
@@ -79,9 +80,17 @@ function ConversationItem({ req, active, onClick, currentUser }) {
       </div>
     </button>
   )
-}
+})
 
 export default function Chat() {
+  usePageMeta({
+    title: 'Chat with Your Ride Partner',
+    description:
+      'Chat in real time with your accepted ride partner on RideShare — coordinate pickup points, timing and travel plans securely.',
+    keywords: 'RideShare chat, co-ride coordination, chat with carpool partner, secure community messaging',
+    path: '/chat',
+  })
+
   const location = useLocation()
   const [acceptedRequests, setAcceptedRequests] = useState([])
   const [activeReqId, setActiveReqId] = useState(location.state?.requestId || null)
@@ -96,6 +105,10 @@ export default function Chat() {
   const [mobileMode, setMobileMode] = useState(location.state?.requestId ? 'chat' : 'list')
   const [deletingChat, setDeletingChat] = useState(false)
   const messagesEndRef = useRef(null)
+  const messagesRef = useRef(null)
+  const stickToBottomRef = useRef(true)
+  const [msgPage, setMsgPage] = useState(1)   // newest page currently loaded
+  const [hasMore, setHasMore] = useState(false)
   const { user } = useAuth()
   const toast = useToast()
 
@@ -120,8 +133,26 @@ export default function Chat() {
   }, [activeReqId])
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    // Only auto-scroll to the newest message while the user is pinned to the
+    // bottom — otherwise reading earlier history would get yanked to the end
+    // every time a new message or page loads.
+    if (stickToBottomRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+    }
   }, [messages])
+
+  // Switching conversations resets to "pinned at the bottom".
+  useEffect(() => {
+    stickToBottomRef.current = true
+  }, [activeReqId])
+
+  const handleMessageScroll = () => {
+    const el = messagesRef.current
+    if (!el) return
+    // Within ~100px of the bottom still counts as "at the bottom".
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+    stickToBottomRef.current = distanceFromBottom < 100
+  }
 
   const fetchAcceptedRequests = async () => {
     try {
@@ -158,12 +189,41 @@ export default function Chat() {
 
   const fetchMessages = async (requestId) => {
     try {
-      const res = await chatAPI.getMessages(requestId)
-      const d = res.data.data || res.data
-      setMessages(d.messages || [])
+      // Load the NEWEST page of history first so the chat opens at the latest
+      // message (the backend returns pages ascending, page 1 = oldest).
+      const first = await chatAPI.getMessages(requestId, 1)
+      const firstData = first.data.data || first.data
+      const totalPages = Math.max(1, firstData.pagination?.pages || 1)
+
+      let msgs = firstData.messages || []
+      if (totalPages > 1) {
+        const last = await chatAPI.getMessages(requestId, totalPages)
+        const lastData = last.data.data || last.data
+        msgs = lastData.messages || []
+      }
+
+      setMessages(msgs)
+      setMsgPage(totalPages)
+      // Older history exists if the last page we loaded isn't the whole thread.
+      setHasMore((firstData.pagination?.total || 0) > msgs.length)
     } catch (err) {
       if (err.response?.status !== 403) toast.error('Failed to load messages')
       setMessages([])
+    }
+  }
+
+  // Fetch an earlier page of history and prepend it above the loaded messages.
+  const loadOlderMessages = async () => {
+    if (!activeReqId || msgPage <= 1) return
+    const prevPage = msgPage - 1
+    try {
+      const res = await chatAPI.getMessages(activeReqId, prevPage)
+      const d = res.data.data || res.data
+      setMessages((prev) => [...(d.messages || []), ...prev])
+      setMsgPage(prevPage)
+      setHasMore(prevPage > 1)
+    } catch {
+      toast.error('Failed to load earlier messages')
     }
   }
 
@@ -307,7 +367,7 @@ export default function Chat() {
   return (
     <div>
       {/* ── Hero ────────────────────────────────────────────────────── */}
-      <section className="page-hero relative overflow-hidden py-8 px-4 md:py-14 md:px-6">
+      <section className="page-hero relative overflow-hidden py-4 px-app md:py-14">
         {/* Background illustration */}
         <div className="hidden md:block absolute inset-0 pointer-events-none overflow-hidden">
           <svg viewBox="0 0 1200 500" className="absolute right-0 top-0 h-full w-2/3" fill="none">
@@ -348,7 +408,7 @@ export default function Chat() {
                 <p className="text-sm mt-1">Accept a ride request to start chatting</p>
               </div>
             ) : (
-              <div className="flex flex-col md:flex-row min-h-[calc(100vh-220px)] md:h-[560px] md:max-h-[560px]">
+              <div className="flex flex-col md:flex-row min-h-[calc(100dvh-260px)] sm:min-h-[460px] md:h-[560px] md:min-h-[500px] md:max-h-[560px]">
                 {/* Sidebar / chat list */}
                 <div className={`w-full md:w-64 h-full border-b border-gray-100 md:border-b-0 md:border-r overflow-y-auto p-3 flex-shrink-0 bg-amber-50/95 shadow-none md:shadow-none ${mobileMode === 'list' ? 'block' : 'hidden md:block'}`}>
                   <div className="flex items-center justify-between mb-3 md:hidden">
@@ -401,9 +461,14 @@ export default function Chat() {
                           />
                         )}
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-sm text-charcoal truncate">
+                                                 <p className="font-semibold text-sm text-charcoal truncate">
                             {otherParticipant?.name || 'Partner'}
                           </p>
+                          {otherParticipant?.identifier && (
+                            <p className="text-xs text-muted font-mono truncate">
+                              #{otherParticipant.identifier}
+                            </p>
+                          )}
                           <p className="text-xs text-muted truncate">
                             {activeReq.ride?.from} → {activeReq.ride?.to}
                           </p>
@@ -455,9 +520,20 @@ export default function Chat() {
 
                   {/* Messages */}
                   <div
-                    className="flex-1 overflow-y-auto p-3 md:p-4 flex flex-col gap-2 md:gap-3 touch-pan-y max-h-full"
+                    ref={messagesRef}
+                    onScroll={handleMessageScroll}
+                    className="chat-scroll flex-1 overflow-y-auto p-3 md:p-4 flex flex-col gap-2 md:gap-3 touch-pan-y max-h-full"
                     style={{ WebkitOverflowScrolling: 'touch' }}
                   >
+                    {hasMore && (
+                      <button
+                        type="button"
+                        onClick={loadOlderMessages}
+                        className="self-center rounded-full px-3 py-1 text-xs text-muted hover:text-primary bg-amber-50 border border-amber-200 transition-colors disabled:opacity-50"
+                      >
+                        ↑ Load earlier messages
+                      </button>
+                    )}
                     {messages.length === 0 ? (
                       <div className="flex-1 flex items-center justify-center text-muted text-sm">
                         Say hello! 👋
@@ -496,14 +572,17 @@ export default function Chat() {
                   ) : (
                     <form
                       onSubmit={handleSend}
-                      className="p-3 md:p-4 border-t border-gray-100 flex gap-2 items-center"
+                      className="pb-safe p-3 md:p-4 border-t border-gray-100 flex gap-2 items-center"
                     >
                       <input
                         type="text"
                         value={newMsg}
-                        onChange={e => setNewMsg(e.target.value)}
+                        onChange={e => setNewMsg(e.target.value.slice(0, 1000))}
                         placeholder="Chatting ..."
-                        className="flex-1 px-3 md:px-4 py-2.5 rounded-xl border border-amber-200 bg-amber-50/30 focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm font-body"
+                        autoComplete="off"
+                        maxLength={1000}
+                        enterKeyHint="send"
+                        className="flex-1 min-w-0 px-3 md:px-4 py-2.5 rounded-xl border border-amber-200 bg-amber-50/30 focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm font-body"
                       />
                       <button
                         type="submit"

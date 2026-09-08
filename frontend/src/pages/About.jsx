@@ -1,6 +1,16 @@
+import { usePageMeta } from '../hooks/usePageMeta'
+
 export default function About() {
+  usePageMeta({
+    title: 'About Us',
+    description:
+      'Learn how RideShare connects verified students and staff for safe, affordable carpooling. Post rides, chat in real time and share costs within your college or company community.',
+    keywords: 'about RideShare, how ride sharing works, cab sharing, college commute app, safe ride sharing, company carpool',
+    path: '/about',
+  })
+
   const features = [
-    { icon: '🔒', title: 'College-only Access', desc: 'Only verified domain email holders can join. Your community, your safety.' },
+    { icon: '🔒', title: 'Community-only Access', desc: 'Only verified email holders of your organization can join. Your community, your safety.' },
     { icon: '🚗', title: 'Easy Ride Sharing', desc: 'Post or find rides in seconds. Filter by destination, date, and time.' },
     { icon: '💬', title: 'Real-time Chat', desc: 'Chat with your ride partner after request acceptance — coordinate seamlessly.' },
     { icon: '📱', title: 'Phone Sharing', desc: 'Share phone numbers only after mutual consent for maximum privacy.' },
@@ -11,13 +21,13 @@ export default function About() {
   return (
     <div>
       {/* Hero */}
-      <section className="page-hero py-20 px-6">
+      <section className="page-hero py-12 sm:py-16 lg:py-20 px-app">
         <div className="max-w-3xl mx-auto text-center">
           <h1 className="font-display text-5xl font-bold text-charcoal leading-tight">
             About <span className="text-primary">RideShare</span>
           </h1>
           <p className="mt-6 text-lg text-muted leading-relaxed font-body">
-            RideShare is a closed-community platform built exclusively for students and staff.
+            RideShare is a closed-community platform for verified students, staff and employees.
             We believe travel is better together — safer, more affordable, and more fun
             when you're with people you know.
           </p>
@@ -25,13 +35,13 @@ export default function About() {
       </section>
 
       {/* Mission */}
-      <section className="max-w-7xl mx-auto px-6 py-16">
+      <section className="max-w-7xl mx-auto px-app py-section">
         <div className="grid md:grid-cols-2 gap-12 items-center">
           <div>
             <h2 className="font-display text-3xl font-bold text-charcoal">Our Mission</h2>
             <p className="mt-4 text-muted leading-relaxed font-body">
-              We're on a mission to make intercity travel for college students smarter, safer,
-              and more affordable. By connecting students travelling the same route, we reduce
+              We're on a mission to make intercity travel for students and employees smarter, safer,
+              and more affordable. By connecting people travelling the same route, we reduce
               costs, carbon footprints, and the anxiety of travelling alone.
             </p>
             <p className="mt-4 text-muted leading-relaxed font-body">
@@ -41,7 +51,6 @@ export default function About() {
           </div>
           <div className="bg-amber-50 rounded-3xl p-8 text-center">
             <div className="text-7xl">🎓</div>
-            {/* <p className="font-display text-2xl font-bold mt-4 text-charcoal">NIT Kurukshetra</p> */}
             <p className="text-muted mt-2 font-body">Closed Community Platform</p>
             <div className="flex justify-center gap-8 mt-6">
               <div>
@@ -62,7 +71,7 @@ export default function About() {
       </section>
 
       {/* Features */}
-      <section className="bg-cream-dark py-16 px-6">
+      <section className="bg-cream-dark py-section px-app">
         <div className="max-w-7xl mx-auto">
           <h2 className="font-display text-3xl font-bold text-charcoal text-center mb-12">
             Why Choose RideShare?
@@ -83,13 +92,13 @@ export default function About() {
       </section>
 
       {/* How it works */}
-      <section className="max-w-7xl mx-auto px-6 py-16">
+      <section className="max-w-7xl mx-auto px-app py-section">
         <h2 className="font-display text-3xl font-bold text-charcoal text-center mb-12">
           How It Works
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 relative">
           {[
-            { step: '01', title: 'Sign Up', desc: 'Register with your college email and verify via OTP.' },
+            { step: '01', title: 'Sign Up', desc: 'Register with your organization email (or any email as a general user) and verify via OTP.' },
             { step: '02', title: 'Find or Post', desc: 'Search for rides or create your own with trip details.' },
             { step: '03', title: 'Request & Accept', desc: 'Send a ride request and wait for the creator to accept.' },
             { step: '04', title: 'Chat & Travel', desc: 'Chat with your ride partner and coordinate the journey.' },

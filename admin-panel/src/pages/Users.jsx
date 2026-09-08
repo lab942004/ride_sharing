@@ -28,7 +28,7 @@ export default function Users() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [domains, setDomains] = useState([]);
-  const [form, setForm] = useState({ name: '', rollNo: '', email: '', password: '', phone: '', domain: '' });
+  const [form, setForm] = useState({ name: '', identifier: '', email: '', password: '', phone: '', domain: '' });
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -54,14 +54,14 @@ export default function Users() {
       const res = await api.getDomains();
       setDomains(res.data.domains || []);
     } catch (e) { /* ignore */ }
-    setForm({ name: '', rollNo: '', email: '', password: '', phone: '', domain: '' });
+    setForm({ name: '', identifier: '', email: '', password: '', phone: '', domain: '' });
     setShowAddModal(true);
   };
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
-    if (!form.name || !form.rollNo || !form.email || !form.password || !form.domain) {
-      alert('Name, roll number, email, password, and domain are required');
+    if (!form.name || !form.identifier || !form.email || !form.password || !form.domain) {
+      alert('Name, roll number/employee ID, email, password, and domain are required');
       return;
     }
     setSubmitting(true);
@@ -97,7 +97,7 @@ export default function Users() {
         </div>
       </div>
     )},
-    { key: 'rollNo', label: 'Roll No' },
+    { key: 'identifier', label: 'Roll No / Emp ID' },
     { key: 'domain', label: 'Domain' },
     { key: 'status', label: 'Status', render: (row) => statusBadge(row) },
     { key: 'createdAt', label: 'Joined', render: (row) => new Date(row.createdAt).toLocaleDateString() },
@@ -173,8 +173,8 @@ export default function Users() {
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Full name" required />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Roll Number *</label>
-                <Input value={form.rollNo} onChange={(e) => setForm({ ...form, rollNo: e.target.value })} placeholder="e.g. 21CS001" required />
+                <label className="block text-sm font-medium mb-1">Roll Number / Employee ID *</label>
+                <Input value={form.identifier} onChange={(e) => setForm({ ...form, identifier: e.target.value })} placeholder="e.g. 21CS001 or EMP-123" required />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Email *</label>

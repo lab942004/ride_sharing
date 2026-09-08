@@ -2,18 +2,114 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" href="/logo.png" sizes="512x512" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>RideShare NIT Kurukshetra</title>
+
+    <!-- ── Primary SEO meta ─────────────────────────────────────────────────
+         VITE_APP_URL in .env is injected at build time for the canonical /
+         Open Graph URLs — set it to your real domain before deploying.
+    -->
+    <title>RideShare | Student Carpool &amp; Ride Sharing Platform</title>
+    <meta
+      name="description"
+      content="RideShare is the trusted carpool and ride-sharing platform for your college or company community. Post or find shared rides to nearby cities — chat, confirm seats and travel together safely."
+    />
+    <meta
+      name="keywords"
+      content="ride sharing, carpool, RideShare, college carpool platform, company ride share, share ride, carpool app India, student travel community, cheap intercity travel, RideShare app"
+    />
+    <meta name="author" content="RideShare" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#F59E0B" />
+    <meta name="google" content="notranslate" />
+
+    <!-- ── PWA ────────────────────────────────────────────────────────────── -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="RideShare RideShare" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+
+    <link rel="canonical" href="%VITE_APP_URL%/" />
+
+    <!-- ── Open Graph (Facebook / WhatsApp / LinkedIn) ─────────────────────── -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="RideShare" />
+    <meta property="og:title" content="RideShare — Student Ride Sharing & Carpooling" />
+    <meta
+      property="og:description"
+      content="Share rides, split fuel costs and travel together with verified members of your community. Safe, verified, closed-community ride sharing for campuses and companies."
+    />
+    <meta property="og:url" content="%VITE_APP_URL%/" />
+    <meta property="og:locale" content="en_IN" />
+
+    <!-- ── Twitter card ───────────────────────────────────────────────────── -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="RideShare — Student Ride Sharing & Carpooling" />
+    <meta
+      name="twitter:description"
+      content="Share rides, split costs and travel with verified members of your community. Your private college or company carpooling platform."
+    />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
     <!-- Google AdSense — loaded exactly once, globally. -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9837776506614641"
       crossorigin="anonymous"></script>
+
+    <!-- ── Structured data (JSON-LD) ─────────────────────────────────────────
+      Gives search engines rich snippets — site info, a search action, and the
+      pages that make up the app.
+    -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "name": "RideShare",
+          "alternateName": "RideShare RideShare",
+          "url": "%VITE_APP_URL%/",
+          "description": "Closed-community carpooling and ride-sharing platform for your college or company — share rides, split fuel costs and travel together.",
+          "inLanguage": "en-IN",
+          "publisher": {
+            "@type": "Organization",
+            "name": "RideShare"
+          },
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": "%VITE_APP_URL%/?to={search_term_string}",
+            "query-input": "required name=search_term_string"
+          }
+        },
+        {
+          "@type": "Organization",
+          "name": "RideShare",
+          "url": "%VITE_APP_URL%/",
+          "description": "Community ride-sharing and carpooling platform for colleges and companies.",
+          "areaServed": "India"
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <section style="max-width:720px;margin:40px auto;font-family:Arial,sans-serif;color:#222;line-height:1.6">
+        <h1>RideShare — Student Ride Sharing &amp; Carpooling Platform</h1>
+        <p>
+          Share rides with verified members of your college or company community. Create or join shared rides
+          to nearby cities, split fuel costs, chat in real time
+          and coordinate your journey together — safely inside one trusted community.
+        </p>
+        <p>
+          Enable JavaScript to search for live rides, publish a carpool, and connect with fellow students.
+        </p>
+      </section>
+    </noscript>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

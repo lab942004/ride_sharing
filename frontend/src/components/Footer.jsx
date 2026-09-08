@@ -3,13 +3,13 @@ import { Link } from 'react-router'
 export default function Footer() {
   return (
     <footer className="bg-gray-600 text-white mt-auto">
-      <div className="max-w-7xl mx-auto px-6 py-10">
+      <div className="max-w-7xl mx-auto px-app py-10">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
           {/* Address */}
           <div>
-            <p className="font-semibold text-base">Ride share, Admin Block</p>
-            <p className="text-gray-300 text-sm mt-1">NIT Kurukshetra</p>
-            <p className="text-gray-300 text-sm">Haryana - 136119</p>
+            <p className="font-semibold text-base">RideShare Support</p>
+            <p className="text-gray-300 text-sm mt-1">Community ride-sharing platform</p>
+            <p className="text-gray-300 text-sm">For colleges, campuses & companies</p>
             <p className="text-gray-300 text-sm mt-3">
               Email:{' '}
               <a href="mailto:lab.942004@gmail.com" className="hover:text-primary transition-colors">

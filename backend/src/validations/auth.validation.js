@@ -42,6 +42,9 @@ const indianPhoneField = z
 
 const sendOTPSchema = z.object({
   email: emailField,
+  // Which signup branch the user chose. The backend independently re-derives
+  // the effective account type from the email domain at register time.
+  accountType: z.enum(['organization', 'general']).default('general'),
 });
 
 
@@ -60,7 +63,7 @@ const verifyOTPSchema = z.object({
 // const registerSchema = z
 //   .object({
 //     name           : z.string({ required_error: 'Name is required' }).min(2).max(50).trim(),
-//     rollNo         : z
+//     identifier         : z
 //       .string({ required_error: 'Roll number is required' })
 //       .min(3, 'Roll number must be at least 3 characters')
 //       .max(20, 'Roll number must not exceed 20 characters')
@@ -84,18 +87,23 @@ const registerSchema = z.object({
     .max(50)
     .trim(),
 
-  rollNo: z
-    .string({ required_error: 'Roll number is required' })
-    .min(3, 'Roll number must be at least 3 characters')
-    .max(20, 'Roll number must not exceed 20 characters')
+  // Roll number / employee ID. Required for organization accounts; optional
+  // for general accounts (gmail.com users never send one — the server
+  // generates an immutable sequence number instead, ignoring any client value).
+  identifier: z
+    .string()
+    .min(3, 'ID must be at least 3 characters')
+    .max(20, 'ID must not exceed 20 characters')
     .trim()
-    .toUpperCase(),
+    .optional(),
 
   email: emailField,
 
   phone: indianPhoneField,
 
   password: passwordField,
+
+  accountType: z.enum(['organization', 'general']).default('general'),
 });
 
 
@@ -104,7 +112,14 @@ const registerSchema = z.object({
  */
 const loginSchema = z.object({
   email   : emailField,
-  password: z.string({ required_error: 'Password is required' }),
+  password: z
+    .string({ required_error: 'Password is required' })
+    // Max length matters even on LOGIN: bcrypt is intentionally slow, and
+    // without an upper bound an attacker could flood the endpoint with
+    // huge "passwords" to exhaust CPU (bcrypt DoS). 128 chars is the same
+    // bound we enforce at registration.
+    .min(1)
+    .max(128, 'Password must not exceed 128 characters'),
 });
 
 /**
@@ -113,15 +128,19 @@ const loginSchema = z.object({
  * login/register time, so the body field is optional (kept only as a
  * fallback for non-browser clients).
  */
+// Refresh/JWT tokens are compact (~200-400 chars); a much larger value is a
+// signal of garbage/malicious input, so cap it to keep JWT verification cheap.
+const optionalTokenField = z.string().max(1000, 'Token is too long').optional();
+
 const refreshTokenSchema = z.object({
-  refreshToken: z.string().optional(),
+  refreshToken: optionalTokenField,
 });
 
 /**
  * POST /auth/logout
  */
 const logoutSchema = z.object({
-  refreshToken: z.string().optional(),
+  refreshToken: optionalTokenField,
 });
 
 /**

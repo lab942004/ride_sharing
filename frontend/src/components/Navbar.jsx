@@ -25,8 +25,11 @@ export default function Navbar() {
     <nav className="sticky top-0 z-50 bg-cream/95 backdrop-blur-sm border-b border-amber-100 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Desktop nav links */}
+          {/* Desktop brand + nav links */}
           <div className="hidden md:flex items-center gap-7">
+            <Link to="/" className="flex items-center shrink-0" aria-label="RideShare home">
+              <img src="/logo.png" alt="RideShare logo" className="w-10 h-10 rounded-lg object-cover" />
+            </Link>
             {navLinks.map(link => (
               <NavLink
                 key={link.to}
@@ -52,13 +55,8 @@ export default function Navbar() {
           </div>
 
           {/* Logo (center on mobile, right on desktop) */}
-          <Link to="/" className="md:hidden flex items-center gap-2 group">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5">
-                <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/>
-              </svg>
-            </div>
-            <span className="font-display font-bold text-lg text-charcoal">RideShare</span>
+          <Link to="/" className="md:hidden flex items-center group" aria-label="RideShare home">
+            <img src="/logo.png" alt="RideShare logo" className="w-10 h-10 rounded-lg object-cover" />
           </Link>
 
           {/* Auth button */}

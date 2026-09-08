@@ -20,7 +20,7 @@ const readRefreshToken = (req) => req.cookies?.[USER_COOKIE_NAME] || req.body?.r
 
 const sendOTP = async (req, res, next) => {
   try {
-    const result = await sendOTPService(req.body.email, req.body.name);
+    const result = await sendOTPService(req.body.email, req.body.name, 'email verification', req.body.accountType);
     sendSuccess(res, 200, result.message);
   } catch (e) { next(e); }
 };

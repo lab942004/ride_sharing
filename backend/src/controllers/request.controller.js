@@ -10,7 +10,7 @@ const { sendSuccess } = require('../utils/response.utils');
 const createRequestHandler = async (req, res, next) => {
   try {
     const io      = req.app.get('io');
-    const request = await createRequest(req.user.id, req.body.rideId, io);
+    const request = await createRequest(req.user.id, req.user.domain, req.body.rideId, io);
     sendSuccess(res, 201, 'Ride request sent successfully', { request });
   } catch (e) { next(e); }
 };

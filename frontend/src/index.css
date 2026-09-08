@@ -7,7 +7,10 @@
 @layer base {
   * { box-sizing: border-box; }
 
-  html { scroll-behavior: smooth; }
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
 
   body {
     font-family: 'DM Sans', system-ui, sans-serif;
@@ -15,10 +18,40 @@
     color: #1C1C1C;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Prevent horizontal scroll from overflowing decorative/grid bits */
+    overflow-x: hidden;
   }
 
   h1, h2, h3, h4 {
     font-family: 'Playfair Display', Georgia, serif;
+  }
+}
+
+@layer utilities {
+  /* Responsive page padding — tighter on phones, roomier on desktop */
+  .px-app {
+    @apply px-3 sm:px-6 lg:px-8;
+  }
+
+  /* Consistent vertical section rhythm across breakpoints */
+  .py-section {
+    @apply py-10 sm:py-14 lg:py-16;
+  }
+
+  /* iPhone notch / rounded-corner safe areas */
+  .pt-safe { padding-top: env(safe-area-inset-top); }
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+  .px-safe { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+
+  /* Thinner chat scrollbar via scrollbar-width (Firefox) */
+  .chat-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: #F59E0B #FFF8E7;
+  }
+
+  /* Bottom spacer matching the sticky mobile ad (55px) + home indicator */
+  .pb-ad-safe {
+    padding-bottom: calc(55px + env(safe-area-inset-bottom));
   }
 }
 

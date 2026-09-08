@@ -3,8 +3,11 @@ const prisma  = require('../config/db');
 
 const { generateOTP, getOTPExpiry, isOTPExpired }  = require('../utils/otp.utils');
 const { generateTokenPair, verifyRefreshToken }     = require('../utils/jwt.utils');
-const { extractDomain, isAllowedDomain }            = require('../utils/domain.utils');
-const { sendOTPEmail }                              = require('./email.service');
+const {
+  GMAIL_DOMAIN, extractDomain, isGmailEmail, isAllowedDomain,
+  findDomainRecord, upsertPendingDomain,
+} = require('../utils/domain.utils');
+const { sendOTPEmail, sendDomainRequestEmail }      = require('./email.service');
 const { uploadImage }                              = require('../utils/cloudinary.utils');
 const { BCRYPT_ROUNDS, VERIFIED_EMAIL_EXPIRY_MIN }  = require('../config/constants');
 
@@ -14,12 +17,39 @@ const appError = (message, statusCode = 400) =>
 
 // ─── Send OTP ─────────────────────────────────────────────────────────────────
 /**
- * Validate domain → delete old OTPs → create new OTP → send email.
+ * Multi-organization signup gate:
+ * - gmail.com is ALWAYS allowed (general-user exception), and
+ * - the "general" account branch is allowed from any provider, and
+ * - the "organization" branch requires an ACTIVE domain in the Domain table.
+ *   If the domain isn't registered yet, we upsert a PENDING Domain record,
+ *   email the site admin to review it, and return a structured 422 error the
+ *   frontend can render as the "available within 1 day / contact admin" notice.
+ *
  * `purpose` is shown in the email subject ('email verification' | 'password reset').
  */
-const sendOTPService = async (email, name, purpose = 'email verification') => {
+const sendOTPService = async (email, name, purpose = 'email verification', accountType = 'general') => {
   if (!(await isAllowedDomain(email))) {
-    throw appError('This email domain is not allowed to register. Please use your college email address.', 400);
+    // Not gmail and not an active organization domain → handle per branch.
+    const domain = extractDomain(email);
+    if (accountType === 'organization' && domain) {
+      const existing = await findDomainRecord(domain);
+      // Track the request (creates PENDING record or refreshes requestedAt)
+      await upsertPendingDomain(domain);
+      // Notify the site admin (non-blocking, only on first-ever request)
+      if (!existing) {
+        sendDomainRequestEmail(domain, email).catch((err) =>
+          console.error('❌ Domain request email failed:', err.message)
+        );
+      }
+      throw Object.assign(
+        new Error(
+          `We don't have ${domain} registered yet. It will typically be available within 1 day. ` +
+          `Need it sooner? Contact the admin at the email in the footer.`
+        ),
+        { statusCode: 422, code: 'DOMAIN_NOT_REGISTERED', domain }
+      );
+    }
+    throw appError('This email domain is not allowed to register. Please use a supported email address.', 400);
   }
 
   const existingUser = await prisma.user.findUnique({ where: { email } });
@@ -36,11 +66,11 @@ const sendOTPService = async (email, name, purpose = 'email verification') => {
   await prisma.oTP.create({ data: { email, otp, expiresAt } });
 
   // Fire-and-forget — don't block the response
-  sendOTPEmail(email, name || 'Student', otp, purpose).catch((err) =>
+  sendOTPEmail(email, name || 'there', otp, purpose).catch((err) =>
     console.error('❌ OTP email send failed:', err.message)
   );
 
-  return { message: 'OTP sent successfully. Please check your college email.' };
+  return { message: 'OTP sent successfully. Please check your email.' };
 };
 
 // ─── Verify OTP ───────────────────────────────────────────────────────────────
@@ -71,15 +101,23 @@ const verifyOTPService = async (email, otp) => {
     update: { verifiedAt: new Date(), expiresAt: getOTPExpiry(VERIFIED_EMAIL_EXPIRY_MIN) },
   });
 
-  return { verified: true };
+  // Tell the frontend which profile form to render: gmail.com users get an
+  // auto-generated immutable sequence number instead of a roll/employee ID.
+  const isGmail = extractDomain(email) === GMAIL_DOMAIN;
+  return { verified: true, isGmail };
 };
 
 // ─── Register ─────────────────────────────────────────────────────────────────
 /**
  * Register enforces that a VerifiedEmail row exists and is not expired.
  * This prevents anyone calling /register without first going through /verify-otp.
+ *
+ * Multi-org: users register with `accountType` (organization | general).
+ * gmail.com users get an auto-generated, immutable sequence number as their
+ * identifier (computed atomically server-side). Other users provide a
+ * roll/employee ID.
  */
-const registerService = async ({ name, rollNo, email, phone, password, profilePicFile }) => {
+const registerService = async ({ name, identifier, email, phone, password, profilePicFile, accountType = 'general' }) => {
   // Re-check the domain here too (not just at send-otp time) — a domain may
   // have been deactivated by an admin in between OTP verification and
   // registration completing.
@@ -103,25 +141,75 @@ const registerService = async ({ name, rollNo, email, phone, password, profilePi
     );
   }
 
-  // ── Duplicate check ───────────────────────────────────────────────────────
-  const existing = await prisma.user.findFirst({
-    where: { OR: [{ email }, { rollNo }] },
-  });
+  // ── Resolve identifier + account type ──────────────────────────────────────
+  const domain = extractDomain(email);
+  const isGmail = domain === GMAIL_DOMAIN;
+
+  // The org/general split follows the email domain, not just the client's
+  // chosen branch — gmail users are ALWAYS general (sequence number).
+  const resolvedAccountType = isGmail
+    ? 'general'
+    : accountType === 'organization' ? 'organization' : 'general';
+
+  let identifierValue;
+  let identifierType;
+
+  if (isGmail) {
+    // gmail.com: server-generated immutable sequence number, client value ignored.
+    identifierType = 'SEQUENCE';
+    identifierValue = null; // computed inside the transaction below
+  } else if (resolvedAccountType === 'organization') {
+    // Organization branch — identifier required, domain already re-checked.
+    if (!identifier || !identifier.trim()) {
+      throw appError('Roll number / Employee ID is required for organization accounts.', 400);
+    }
+    identifierType = 'ROLL_OR_EMP_ID';
+    identifierValue = identifier.trim();
+  } else if (identifier && identifier.trim()) {
+    // General branch (non-gmail) with a provided ID.
+    identifierType = 'ROLL_OR_EMP_ID';
+    identifierValue = identifier.trim();
+  } else {
+    // General branch (non-gmail) without an ID → server-generated sequence.
+    identifierType = 'SEQUENCE';
+    identifierValue = null; // computed inside the transaction below
+  }
+
+  // ── Duplicate email check (identifier uniqueness enforced by unique index) ─
+  const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
-    const field = existing.email === email ? 'Email' : 'Roll number';
-    throw appError(`${field} is already registered`, 409);
+    throw appError('Email is already registered', 409);
   }
 
   const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
-  const domain         = extractDomain(email);
   const profilePicUrl  = profilePicFile ? (await uploadImage(profilePicFile)).secure_url : null;
 
   // ── Create user + tokens in a transaction ─────────────────────────────────
   const { user, tokens } = await prisma.$transaction(async (tx) => {
+    let finalIdentifier = identifierValue;
+
+    // Atomic sequence generation for SEQUENCE-type identifiers (gmail.com and
+    // non-gmail general users without an ID): count of existing users under
+    // this domain + 10000, computed INSIDE the transaction so concurrent
+    // signups can't get the same number under normal operation. The unique
+    // constraint on `identifier` is the final backstop against races.
+    if (finalIdentifier === null) {
+      const count = await tx.user.count({ where: { domain } });
+      finalIdentifier = String(count + 10000);
+      // Guard against collisions from past deletions shifting the count.
+      let collision = await tx.user.findUnique({ where: { identifier: finalIdentifier } });
+      while (collision) {
+        finalIdentifier = String(BigInt(finalIdentifier) + 1n);
+        collision = await tx.user.findUnique({ where: { identifier: finalIdentifier } });
+      }
+    }
+
     const newUser = await tx.user.create({
       data  : {
         name,
-        rollNo,
+        identifier      : finalIdentifier,
+        identifierType,
+        accountType     : resolvedAccountType === 'organization' ? 'ORGANIZATION' : 'GENERAL',
         email,
         phone: phone || null,
         password: hashedPassword,
@@ -129,7 +217,7 @@ const registerService = async ({ name, rollNo, email, phone, password, profilePi
         domain,
         isVerified: true,
       },
-      select: { id: true, name: true, email: true, rollNo: true, domain: true, phone: true, profilePic: true },
+      select: { id: true, name: true, email: true, identifier: true, identifierType: true, accountType: true, domain: true, phone: true, profilePic: true },
     });
 
     const tokens = generateTokenPair({ id: newUser.id, email: newUser.email, domain: newUser.domain });
@@ -167,13 +255,15 @@ const loginService = async (email, password) => {
   });
 
   const safeUser = {
-    id        : user.id,
-    name      : user.name,
-    email     : user.email,
-    rollNo    : user.rollNo,
-    phone     : user.phone,
-    profilePic: user.profilePic || null,
-    domain    : user.domain,
+    id             : user.id,
+    name           : user.name,
+    email          : user.email,
+    identifier     : user.identifier,
+    identifierType : user.identifierType,
+    accountType    : user.accountType,
+    phone          : user.phone,
+    profilePic     : user.profilePic || null,
+    domain         : user.domain,
   };
   return { user: safeUser, accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, refreshExpiresAt: tokens.refreshExpiresAt };
 };
@@ -190,8 +280,26 @@ const refreshTokenService = async (refreshToken) => {
 
   // Check DB — token must exist, not revoked, and not expired
   const stored = await prisma.refreshToken.findUnique({ where: { token: refreshToken } });
-  if (!stored || stored.isRevoked || new Date() > stored.expiresAt) {
-    throw appError('Refresh token is invalid or has been revoked. Please login again.', 401);
+  if (!stored) {
+    throw appError('Refresh token is invalid. Please login again.', 401);
+  }
+
+  // SECURITY (replay attack): a token that exists but is already revoked was
+  // presented TWICE. That is the signature of a stolen refresh token being
+  // replayed after a legitimate rotation — the attacker kept a copy. In that
+  // case we revoke ALL of the user's remaining sessions (force full re-login)
+  // instead of just rejecting this one, so the attacker can't keep minting
+  // tokens from other stolen sessions.
+  if (stored.isRevoked) {
+    await prisma.refreshToken.updateMany({
+      where: { userId: stored.userId, isRevoked: false },
+      data : { isRevoked: true },
+    });
+    throw appError('Session detected as compromised. Please login again.', 401);
+  }
+
+  if (new Date() > stored.expiresAt) {
+    throw appError('Refresh token has expired. Please login again.', 401);
   }
 
   const user = await prisma.user.findUnique({

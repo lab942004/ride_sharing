@@ -3,6 +3,7 @@ require('dotenv').config();
 const express    = require('express');
 const http       = require('http');
 const path       = require('path');
+const fs         = require('fs');
 const { Server } = require('socket.io');
 const cors       = require('cors');
 const helmet     = require('helmet');
@@ -11,6 +12,7 @@ const cookieParser = require('cookie-parser');
 
 const { errorHandler, notFound }  = require('./middleware/error.middleware');
 const { globalLimiter }           = require('./middleware/rateLimit.middleware');
+const { originCheck }             = require('./middleware/origin.middleware');
 const authRoutes                  = require('./routes/auth.routes');
 const rideRoutes                  = require('./routes/ride.routes');
 const requestRoutes               = require('./routes/request.routes');
@@ -23,6 +25,7 @@ const geocodeRoutes               = require('./routes/geocode.routes');
 const pushRoutes                  = require('./routes/push.routes');
 const initSocket                  = require('./sockets/chat.socket');
 const { initCleanupJobs }         = require('./jobs/cleanup.job');
+const { initHealthCheckJob }      = require('./jobs/health.job');
 const prisma                      = require('./config/db');
 
 // ─── Express + HTTP server ────────────────────────────────────────────────────
@@ -104,31 +107,58 @@ app.get('/health', async (_req, res) => {
 });
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
-app.use('/api/auth',     authRoutes);
-app.use('/api/rides',    rideRoutes);
-app.use('/api/requests', requestRoutes);
-app.use('/api/chats',    chatRoutes);
-app.use('/api/profile',  profileRoutes);
-app.use('/api/admin/auth', adminAuthRoutes);
+// The auth routers handle the httpOnly refresh-token cookie (login/refresh/
+// logout), which is CSRF-sensitive — see origin.middleware.js. Because these
+// cookies can be `SameSite=None` in production (cross-site hosting), an
+// attacker's page could otherwise POST to them with the cookie attached.
+app.use('/api/auth',      originCheck(allowedOrigins), authRoutes);
+app.use('/api/rides',     rideRoutes);
+app.use('/api/requests',  requestRoutes);
+app.use('/api/chats',     chatRoutes);
+app.use('/api/profile',   profileRoutes);
+app.use('/api/admin/auth', originCheck(allowedOrigins), adminAuthRoutes);
 app.use('/api/admin',       adminRoutes);
 app.use('/api/domains',     publicRoutes);
 app.use('/api/geocode',     geocodeRoutes);
 app.use('/api/push',        pushRoutes);
 
+// ─── Production SPA hosting (optional) ───────────────────────────────────────
+// If the frontend has been built (frontend/dist exists), serve it from this
+// server and fall back to index.html for every non-API route so deep links
+// like /about, /login etc. work directly in the browser (and so crawlers get
+// real HTML for every URL — required for the app's new clean-URL routing).
+// Deployment docs prefer a CDN/static host for the frontend, but this keeps a
+// single-origin Node deployment fully functional with deep-link support.
+const frontendDist = path.join(__dirname, '..', '..', 'frontend', 'dist');
+const servingSpa = process.env.NODE_ENV === 'production' && fs.existsSync(frontendDist);
 
-app.get('/', (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: 'RideShare backend is running',
+if (servingSpa) {
+  app.use(express.static(frontendDist));
+  app.get('*', (req, res, next) => {
+    // Never serve index.html for API 404s — those should hit the JSON 404/error handler.
+    if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) return next();
+    res.sendFile(path.join(frontendDist, 'index.html'));
   });
-});
+}
 
-app.head('/', (req, res) => {
-  res.sendStatus(200);
-});
-app.get('/favicon.ico', (req, res) => {
-  res.status(204).end();
-});
+// The bare-URL JSON welcome route only makes sense when the API is served on
+// its own (no bundled frontend) — otherwise GET / must return the HTML app shell.
+if (!servingSpa) {
+  app.get('/', (req, res) => {
+    res.status(200).json({
+      success: true,
+      message: 'RideShare backend is running',
+    });
+  });
+
+  app.head('/', (req, res) => {
+    res.sendStatus(200);
+  });
+
+  app.get('/favicon.ico', (req, res) => {
+    res.status(204).end();
+  });
+}
 
 // ─── 404 + Error handler ──────────────────────────────────────────────────────
 app.use(notFound);
@@ -147,6 +177,7 @@ server.listen(PORT, async () => {
 
     // Start background cron jobs
     initCleanupJobs();
+    initHealthCheckJob();
   } catch (err) {
     console.error('❌ Failed to start server:', err.message);
     process.exit(1);

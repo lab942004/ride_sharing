@@ -1,4 +1,4 @@
-const bcrypt = require('bcryptjs');
+﻿const bcrypt = require('bcryptjs');
 const prisma = require('../config/db');
 const { invalidateDomainCache } = require('../utils/domain.utils');
 const { generateSecurePassword } = require('../utils/password.utils');
@@ -17,7 +17,7 @@ const normalizeDomainName = (name) => {
 };
 
 class AdminService {
-  // ─── Dashboard ──────────────────────────────────────────────────────────────
+  // â”€â”€â”€ Dashboard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async getAdminDashboard(admin) {
     const isSuperAdmin = admin.role === 'SUPER_ADMIN';
     const domainWhere = isSuperAdmin ? {} : { domain: admin.domain };
@@ -90,7 +90,7 @@ class AdminService {
     };
   }
 
-  // ─── Domain Management ──────────────────────────────────────────────────────
+  // â”€â”€â”€ Domain Management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async getDomains() {
     const domains = await prisma.domain.findMany({
       orderBy: { name: 'asc' },
@@ -113,10 +113,17 @@ class AdminService {
     if (existing) throw appError('This domain already exists', 409);
 
     const domain = await prisma.domain.create({
-      data: { name, description: data.description || '', isActive: data.isActive !== false },
+      data: {
+        name,
+        description : data.description || '',
+        // Admin-created domains are immediately usable for organization signup
+        isActive    : data.isActive !== false,
+        status      : data.isActive !== false ? 'ACTIVE' : 'PENDING',
+        activatedAt : data.isActive !== false ? new Date() : null,
+      },
     });
 
-    // Take effect immediately for send-otp/register checks — do not wait
+    // Take effect immediately for send-otp/register checks â€” do not wait
     // for the cache TTL to expire.
     invalidateDomainCache();
 
@@ -127,7 +134,13 @@ class AdminService {
     const updateData = {};
     if (data.name !== undefined) updateData.name = normalizeDomainName(data.name);
     if (data.description !== undefined) updateData.description = data.description;
-    if (data.isActive !== undefined) updateData.isActive = Boolean(data.isActive);
+    if (data.isActive !== undefined) {
+      updateData.isActive = Boolean(data.isActive);
+      // Keep `status` in sync: activating a domain approves it for signup
+      // (including domains that were PENDING from a user's signup request).
+      updateData.status = Boolean(data.isActive) ? 'ACTIVE' : 'PENDING';
+      if (Boolean(data.isActive)) updateData.activatedAt = new Date();
+    }
 
     if (updateData.name) {
       const existing = await prisma.domain.findFirst({ where: { name: updateData.name, NOT: { id } } });
@@ -153,7 +166,7 @@ class AdminService {
     invalidateDomainCache();
   }
 
-  // ─── Admin Management ───────────────────────────────────────────────────────
+  // â”€â”€â”€ Admin Management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async getAdmins(query) {
     const { page = 1, limit = 10, search, status, role } = query;
     const skip = (page - 1) * limit;
@@ -292,7 +305,7 @@ class AdminService {
     return { temporaryPassword: password };
   }
 
-  // ─── User Management ────────────────────────────────────────────────────────
+  // â”€â”€â”€ User Management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async getUsers(query, admin) {
     const { page = 1, limit = 10, search, status, domain: filterDomain } = query;
     const skip = (page - 1) * limit;
@@ -308,7 +321,7 @@ class AdminService {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
         { email: { contains: search, mode: 'insensitive' } },
-        { rollNo: { contains: search, mode: 'insensitive' } },
+        { identifier: { contains: search, mode: 'insensitive' } },
       ];
     }
     if (status === 'suspended') where.isSuspended = true;
@@ -323,7 +336,7 @@ class AdminService {
         take: Number(limit),
         orderBy: { createdAt: 'desc' },
         select: {
-          id: true, name: true, email: true, rollNo: true, phone: true,
+          id: true, name: true, email: true, identifier: true, identifierType: true, phone: true,
           domain: true, isVerified: true, isBanned: true, isSuspended: true, isMuted: true,
           profilePic: true, createdAt: true, updatedAt: true,
         },
@@ -338,7 +351,7 @@ class AdminService {
     const user = await prisma.user.findUnique({
       where: { id },
       select: {
-        id: true, name: true, email: true, rollNo: true, phone: true,
+        id: true, name: true, email: true, identifier: true, identifierType: true, phone: true,
         domain: true, isVerified: true, isBanned: true, isSuspended: true, isMuted: true,
         profilePic: true, createdAt: true, updatedAt: true,
         _count: { select: { rides: true, sentRequests: true, messages: true } },
@@ -415,14 +428,16 @@ class AdminService {
     const existing = await prisma.user.findUnique({ where: { email: data.email } });
     if (existing) throw appError('User with this email already exists', 409);
 
-    const rollNoExists = await prisma.user.findUnique({ where: { rollNo: data.rollNo } });
-    if (rollNoExists) throw appError('Roll number already in use', 409);
+    const identifierExists = await prisma.user.findUnique({ where: { identifier: data.identifier } });
+    if (identifierExists) throw appError('ID is already in use', 409);
 
     const hashedPassword = await bcrypt.hash(data.password, 12);
     const user = await prisma.user.create({
       data: {
         name: data.name,
-        rollNo: data.rollNo,
+        identifier: data.identifier,
+        identifierType: data.identifierType === 'SEQUENCE' ? 'SEQUENCE' : 'ROLL_OR_EMP_ID',
+        accountType: data.accountType === 'ORGANIZATION' ? 'ORGANIZATION' : 'GENERAL',
         email: data.email,
         password: hashedPassword,
         phone: data.phone || null,
@@ -430,7 +445,7 @@ class AdminService {
         isVerified: data.isVerified !== false,
       },
       select: {
-        id: true, name: true, email: true, rollNo: true, phone: true,
+        id: true, name: true, email: true, identifier: true, identifierType: true, phone: true,
         domain: true, isVerified: true, createdAt: true,
       },
     });
@@ -452,7 +467,7 @@ class AdminService {
     return { temporaryPassword: newPassword };
   }
 
-  // ─── Ride Management ────────────────────────────────────────────────────────
+  // â”€â”€â”€ Ride Management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async getRides(query, admin) {
     const { page = 1, limit = 10, search, status, domain: filterDomain } = query;
     const skip = (page - 1) * limit;
@@ -476,7 +491,7 @@ class AdminService {
         take: Number(limit),
         orderBy: { createdAt: 'desc' },
         include: {
-          createdBy: { select: { id: true, name: true, email: true, rollNo: true } },
+          createdBy: { select: { id: true, name: true, email: true, identifier: true, identifierType: true } },
           _count: { select: { requests: true } },
         },
       }),
@@ -490,10 +505,10 @@ class AdminService {
     const ride = await prisma.ride.findUnique({
       where: { id },
       include: {
-        createdBy: { select: { id: true, name: true, email: true, rollNo: true, phone: true } },
+        createdBy: { select: { id: true, name: true, email: true, identifier: true, identifierType: true, phone: true } },
         requests: {
           include: {
-            requester: { select: { id: true, name: true, email: true, rollNo: true } },
+            requester: { select: { id: true, name: true, email: true, identifier: true, identifierType: true } },
           },
         },
       },
@@ -543,7 +558,7 @@ class AdminService {
     return { ride: updated };
   }
 
-  // ─── Request Management ─────────────────────────────────────────────────────
+  // â”€â”€â”€ Request Management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async getRequests(query, admin) {
     const { page = 1, limit = 10, status: filterStatus, search } = query;
     const skip = (page - 1) * limit;
@@ -570,7 +585,7 @@ class AdminService {
         orderBy: { createdAt: 'desc' },
         include: {
           ride: { select: { id: true, from: true, to: true, date: true, time: true, domain: true } },
-          requester: { select: { id: true, name: true, email: true, rollNo: true } },
+          requester: { select: { id: true, name: true, email: true, identifier: true, identifierType: true } },
         },
       }),
       prisma.request.count({ where }),
@@ -612,7 +627,7 @@ class AdminService {
     return { request: updated };
   }
 
-  // ─── Chat Management ────────────────────────────────────────────────────────
+  // â”€â”€â”€ Chat Management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async getChats(query, admin) {
     const { page = 1, limit = 10, search } = query;
     const skip = (page - 1) * limit;
@@ -747,7 +762,7 @@ class AdminService {
     return { user: updated };
   }
 
-  // ─── Announcements ──────────────────────────────────────────────────────────
+  // â”€â”€â”€ Announcements â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async getAnnouncements(query, admin) {
     const { page = 1, limit = 10, search } = query;
     const skip = (page - 1) * limit;
@@ -785,7 +800,7 @@ class AdminService {
     const isSuperAdmin = admin.role === 'SUPER_ADMIN';
 
     // SECURITY: a domain-scoped admin may only create announcements scoped to
-    // their own domain — never GLOBAL, and never targeting another domain.
+    // their own domain â€” never GLOBAL, and never targeting another domain.
     // Only SUPER_ADMIN may create GLOBAL announcements or pick an arbitrary domain.
     let type = data.type || 'GLOBAL';
     let domain = data.domain || null;
@@ -815,7 +830,7 @@ class AdminService {
     if (!announcement) throw Object.assign(new Error('Announcement not found'), { statusCode: 404 });
 
     // SECURITY: domain-scoped admins may only touch their own domain's
-    // announcements — not GLOBAL ones and not another domain's.
+    // announcements â€” not GLOBAL ones and not another domain's.
     const isSuperAdmin = admin.role === 'SUPER_ADMIN';
     if (!isSuperAdmin && announcement.domain !== admin.domain) {
       throw Object.assign(new Error('Access denied. This announcement is not in your domain.'), { statusCode: 403 });
@@ -850,7 +865,7 @@ class AdminService {
     await this._logActivity('ANNOUNCEMENT_DELETED', 'Announcement', id, admin, { title: announcement.title });
   }
 
-  // ─── User Notifications (Push to specific users) ────────────────────────────
+  // â”€â”€â”€ User Notifications (Push to specific users) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async sendUserNotification(data, admin) {
     const { userId, title, content } = data;
     const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -871,11 +886,41 @@ class AdminService {
     if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
       throw Object.assign(new Error('User IDs required'), { statusCode: 400 });
     }
+    // Hard upper bound regardless of what schema validation already enforced
+    // (defense in depth - this method must be safe to call on its own).
+    if (userIds.length > 500) {
+      throw Object.assign(new Error('Cannot notify more than 500 users in a single request'), { statusCode: 400 });
+    }
+
+    const isSuperAdmin = admin.role === 'SUPER_ADMIN';
+
+    // --- Domain scoping --------------------------------------------------
+    // A non-super-admin must not be able to blast notifications to users
+    // outside their own domain. Look up every target user and verify their
+    // domain matches the admin's domain (mirrors sendUserNotification above).
+    const uniqueUserIds = [...new Set(userIds)];
+    const users = await prisma.user.findMany({
+      where  : { id: { in: uniqueUserIds } },
+      select : { id: true, domain: true },
+    });
+
+    const foundIds = new Set(users.map((u) => u.id));
+    const missing  = uniqueUserIds.filter((id) => !foundIds.has(id));
+    if (missing.length > 0) {
+      throw Object.assign(new Error(`User(s) not found: ${missing.join(', ')}`), { statusCode: 404 });
+    }
+
+    if (!isSuperAdmin) {
+      const outOfDomain = users.filter((u) => u.domain !== admin.domain);
+      if (outOfDomain.length > 0) {
+        throw Object.assign(new Error('Access denied. Some users are outside your domain.'), { statusCode: 403 });
+      }
+    }
 
     const notifications = await prisma.userNotification.createMany({
-      data: userIds.map((userId) => ({ title, content, userId })),
+      data: uniqueUserIds.map((userId) => ({ title, content, userId })),
     });
-    await this._logActivity('BULK_NOTIFICATION_SENT', 'UserNotification', null, admin, { count: userIds.length, title });
+    await this._logActivity('BULK_NOTIFICATION_SENT', 'UserNotification', null, admin, { count: uniqueUserIds.length, title });
     return { count: notifications.count };
   }
 
@@ -899,7 +944,7 @@ class AdminService {
     return { notifications, pagination: { page: Number(page), limit: Number(limit), total, pages: Math.ceil(total / limit) } };
   }
 
-  // ─── Reports ────────────────────────────────────────────────────────────────
+  // â”€â”€â”€ Reports â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async getReports(query, admin) {
     const { page = 1, limit = 10, type, status } = query;
     const skip = (page - 1) * limit;
@@ -952,7 +997,7 @@ class AdminService {
     await this._logActivity('REPORT_DELETED', 'Report', id, admin);
   }
 
-  // ─── Home Management - Banners ──────────────────────────────────────────────
+  // â”€â”€â”€ Home Management - Banners â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async getBanners() {
     const banners = await prisma.banner.findMany({ orderBy: { order: 'asc' } });
     return { banners };
@@ -990,7 +1035,7 @@ class AdminService {
     await prisma.banner.delete({ where: { id } });
   }
 
-  // ─── Home Management - Carousel ─────────────────────────────────────────────
+  // â”€â”€â”€ Home Management - Carousel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async getCarouselItems() {
     const items = await prisma.carouselItem.findMany({ orderBy: { order: 'asc' } });
     return { carouselItems: items };
@@ -1027,7 +1072,7 @@ class AdminService {
     await prisma.carouselItem.delete({ where: { id } });
   }
 
-  // ─── Home Management - Featured Cards ───────────────────────────────────────
+  // â”€â”€â”€ Home Management - Featured Cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async getFeaturedCards() {
     const cards = await prisma.featuredCard.findMany({ orderBy: { order: 'asc' } });
     return { featuredCards: cards };
@@ -1064,7 +1109,7 @@ class AdminService {
     await prisma.featuredCard.delete({ where: { id } });
   }
 
-  // ─── Activity Logs ──────────────────────────────────────────────────────────
+  // â”€â”€â”€ Activity Logs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async getActivityLogs(query, admin) {
     const { page = 1, limit = 20, action } = query;
     const skip = (page - 1) * limit;
@@ -1084,7 +1129,7 @@ class AdminService {
     return { logs, pagination: { page: Number(page), limit: Number(limit), total, pages: Math.ceil(total / limit) } };
   }
 
-  // ─── System Settings ────────────────────────────────────────────────────────
+  // â”€â”€â”€ System Settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async getSystemSettings() {
     const settings = await prisma.systemSetting.findMany();
     const settingsMap = {};
@@ -1101,7 +1146,7 @@ class AdminService {
     return { setting };
   }
 
-  // ─── Analytics ──────────────────────────────────────────────────────────────
+  // â”€â”€â”€ Analytics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async getAnalytics(query, admin) {
     const { period = 'daily', startDate, endDate } = query;
     const isSuperAdmin = admin.role === 'SUPER_ADMIN';
@@ -1144,7 +1189,7 @@ class AdminService {
     };
   }
 
-  // ─── Storage ────────────────────────────────────────────────────────────────
+  // â”€â”€â”€ Storage â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async getStorageStats() {
     const [totalFiles, totalBytes, recentFiles] = await Promise.all([
       prisma.storageFile.count(),
@@ -1165,7 +1210,7 @@ class AdminService {
     return { deletedCount: result.count };
   }
 
-  // ─── Security ───────────────────────────────────────────────────────────────
+  // â”€â”€â”€ Security â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async getSecurityLogs(query) {
     const { page = 1, limit = 20 } = query;
     const skip = (page - 1) * limit;
@@ -1182,7 +1227,7 @@ class AdminService {
     return { logs, pagination: { page: Number(page), limit: Number(limit), total, pages: Math.ceil(total / limit) } };
   }
 
-  // ─── Database Stats ─────────────────────────────────────────────────────────
+  // â”€â”€â”€ Database Stats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async getDatabaseStats() {
     const [userCount, rideCount, requestCount, chatCount, messageCount, adminCount, domainCount, reportCount] =
       await Promise.all([
@@ -1210,7 +1255,7 @@ class AdminService {
     };
   }
 
-  // ─── API Monitor Stats ──────────────────────────────────────────────────────
+  // â”€â”€â”€ API Monitor Stats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async getApiMonitorStats() {
     const recentLogs = await prisma.activityLog.findMany({
       take: 50,
@@ -1229,7 +1274,7 @@ class AdminService {
     };
   }
 
-  // ─── Helpers ────────────────────────────────────────────────────────────────
+  // â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async _logActivity(action, entity, entityId, admin, details = {}) {
     try {
       await prisma.activityLog.create({

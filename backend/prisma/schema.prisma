@@ -51,33 +51,58 @@ enum ReportStatus {
   CLOSED
 }
 
+enum AccountType {
+  ORGANIZATION
+  GENERAL
+}
+
+enum IdentifierType {
+  ROLL_OR_EMP_ID
+  SEQUENCE
+}
+
+enum DomainStatus {
+  PENDING
+  ACTIVE
+}
+
+enum OrganizationType {
+  ORGANIZATION
+  COLLEGE
+  COMPANY
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // USER
 // ─────────────────────────────────────────────────────────────────────────────
 model User {
-  id         String   @id @default(uuid())
-  name       String
-  rollNo     String   @unique
-  email      String   @unique
-  password   String
-  phone      String?
-  profilePic String?
-  domain     String
-  role       UserRole @default(USER)
-  isVerified Boolean  @default(false)
-  isBanned   Boolean  @default(false)
-  isSuspended Boolean @default(false)
-  isMuted    Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id             String         @id @default(uuid())
+  name           String
+  // `identifier` is the roll number / employee ID for organization users, or
+  // an auto-generated immutable sequence number for gmail.com general users.
+  identifier     String         @unique
+  identifierType IdentifierType
+  accountType    AccountType    @default(GENERAL)
+  email          String         @unique
+  password       String
+  phone          String?
+  profilePic     String?
+  domain         String
+  role           UserRole       @default(USER)
+  isVerified     Boolean        @default(false)
+  isBanned       Boolean        @default(false)
+  isSuspended    Boolean        @default(false)
+  isMuted        Boolean        @default(false)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
-  rides            Ride[]
-  sentRequests     Request[]      @relation("RequesterRequests")
-  receivedRequests Request[]      @relation("RideOwnerRequests")
-  messages         Message[]
-  refreshTokens    RefreshToken[]
-  reports          Report[]       @relation("ReportedUser")
-  notifications    UserNotification[]
+  rides             Ride[]
+  sentRequests      Request[]          @relation("RequesterRequests")
+  receivedRequests  Request[]          @relation("RideOwnerRequests")
+  messages          Message[]
+  refreshTokens     RefreshToken[]
+  reports           Report[]           @relation("ReportedUser")
+  notifications     UserNotification[]
   pushSubscriptions PushSubscription[]
 
   @@index([domain])
@@ -90,18 +115,18 @@ model User {
 // ADMIN
 // ─────────────────────────────────────────────────────────────────────────────
 model Admin {
-  id           String      @id @default(uuid())
-  name         String
-  email        String      @unique
-  password     String
-  phone        String?
-  profilePic   String?
-  role         UserRole    @default(ADMIN)
-  status       AdminStatus @default(ACTIVE)
-  domain       String?
-  createdById  String?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id          String      @id @default(uuid())
+  name        String
+  email       String      @unique
+  password    String
+  phone       String?
+  profilePic  String?
+  role        UserRole    @default(ADMIN)
+  status      AdminStatus @default(ACTIVE)
+  domain      String?
+  createdById String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   refreshTokens AdminRefreshToken[]
 
@@ -129,14 +154,21 @@ model AdminRefreshToken {
 // DOMAIN
 // ─────────────────────────────────────────────────────────────────────────────
 model Domain {
-  id          String   @id @default(uuid())
-  name        String   @unique
+  id          String           @id @default(uuid())
+  name        String           @unique
   description String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  type        OrganizationType @default(ORGANIZATION)
+  // PENDING = requested by a user at signup, not yet usable for registration.
+  // ACTIVE  = approved by an admin, usable for organization-branch signup.
+  status      DomainStatus     @default(ACTIVE)
+  isActive    Boolean          @default(true) // admin-panel convenience toggle; kept in sync with status
+  requestedAt DateTime?
+  activatedAt DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   @@index([name])
+  @@index([status])
   @@map("domains")
 }
 
@@ -180,18 +212,18 @@ model UserNotification {
 // REPORT
 // ─────────────────────────────────────────────────────────────────────────────
 model Report {
-  id          String       @id @default(uuid())
-  type        ReportType   @default(USER)
-  reason      String
-  description String?
-  status      ReportStatus @default(PENDING)
-  targetId    String?
+  id           String       @id @default(uuid())
+  type         ReportType   @default(USER)
+  reason       String
+  description  String?
+  status       ReportStatus @default(PENDING)
+  targetId     String?
   reportedById String?
-  reportedBy  User?        @relation("ReportedUser", fields: [reportedById], references: [id])
+  reportedBy   User?        @relation("ReportedUser", fields: [reportedById], references: [id])
   resolvedById String?
-  resolvedAt  DateTime?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  resolvedAt   DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
   @@index([type, status])
   @@index([targetId])
@@ -289,16 +321,16 @@ model LoginAttempt {
 // ACTIVITY LOG
 // ─────────────────────────────────────────────────────────────────────────────
 model ActivityLog {
-  id         String   @id @default(uuid())
-  action     String
-  entity     String?
-  entityId   String?
-  details    Json?
-  adminId    String?
-  adminName  String?
-  adminRole  String?
-  ipAddress  String?
-  createdAt  DateTime @default(now())
+  id        String   @id @default(uuid())
+  action    String
+  entity    String?
+  entityId  String?
+  details   Json?
+  adminId   String?
+  adminName String?
+  adminRole String?
+  ipAddress String?
+  createdAt DateTime @default(now())
 
   @@index([adminId])
   @@index([action])
@@ -370,7 +402,7 @@ model Request {
   requester   User   @relation("RequesterRequests", fields: [requesterId], references: [id], onDelete: Cascade)
 
   rideCreatorId String?
-  rideCreator   User?  @relation("RideOwnerRequests", fields: [rideCreatorId], references: [id])
+  rideCreator   User?   @relation("RideOwnerRequests", fields: [rideCreatorId], references: [id])
 
   chat Chat?
 
@@ -384,11 +416,11 @@ model Request {
 // CHAT & MESSAGE
 // ─────────────────────────────────────────────────────────────────────────────
 model Chat {
-  id        String    @id @default(uuid())
-  createdAt DateTime  @default(now())
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
 
-  requestId String   @unique
-  request   Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  requestId String  @unique
+  request   Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
   messages Message[]
 
@@ -460,15 +492,15 @@ model RefreshToken {
 // PUSH SUBSCRIPTION (Web Push Notifications)
 // ─────────────────────────────────────────────────────────────────────────────
 model PushSubscription {
-  id           String   @id @default(uuid())
-  userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  endpoint     String   @unique
-  p256dh       String
-  auth         String
-  userAgent    String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId])
   @@map("push_subscriptions")

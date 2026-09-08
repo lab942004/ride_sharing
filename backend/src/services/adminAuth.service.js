@@ -49,8 +49,23 @@ class AdminAuthService {
       include: { admin: true },
     });
 
-    if (!storedToken || storedToken.isRevoked || new Date() > storedToken.expiresAt) {
+    if (!storedToken) {
       throw Object.assign(new Error('Invalid refresh token'), { statusCode: 401 });
+    }
+
+    // SECURITY (replay attack): a revoked-but-existing token being presented
+    // again indicates a stolen refresh token replayed after rotation. Revoke
+    // ALL of the admin's remaining sessions and force a clean re-login.
+    if (storedToken.isRevoked) {
+      await prisma.adminRefreshToken.updateMany({
+        where: { adminId: storedToken.adminId, isRevoked: false },
+        data: { isRevoked: true },
+      });
+      throw Object.assign(new Error('Session detected as compromised. Please login again.'), { statusCode: 401 });
+    }
+
+    if (new Date() > storedToken.expiresAt) {
+      throw Object.assign(new Error('Refresh token has expired'), { statusCode: 401 });
     }
 
     if (storedToken.admin.status === 'SUSPENDED') {

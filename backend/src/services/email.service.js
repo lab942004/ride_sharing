@@ -1,223 +1,121 @@
-// const { Resend }    = require('resend');
-// const nodemailer    = require('nodemailer');
+// ─── Email providers (REST APIs) ──────────────────────────────────────────────
+// Emails are sent through the Resend REST API and/or the Brevo REST API using
+// plain fetch() — no SDK required.
+//   Resend : POST https://api.resend.com/emails        (Header: Authorization: Bearer)
+//   Brevo  : POST https://api.brevo.com/v3/smtp/email  (Header: api-key)
+// Resend is tried first, then Brevo as fallback. Configure at least one of
+// RESEND_API_KEY / BREVO_API_KEY in .env.
 
-// // const resend = new Resend(process.env.RESEND_API_KEY);
-// const resend = process.env.RESEND_API_KEY
-//   ? new Resend(process.env.RESEND_API_KEY)
-//   : null;
+// NOTE: never hardcode a real/personal email as the fallback here — it leaks
+// personal information into source code/repos. The sender must come from the
+// operator's .env (EMAIL_FROM). If it's unset we fall back to a clearly
+// neutral placeholder; production deployments should always set EMAIL_FROM.
+const FROM = process.env.EMAIL_FROM || 'RideShare <no-reply@rideshares.local>';
 
-// // const FROM   = process.env.EMAIL_FROM || 'RideShare NIT KKR <noreply@nitkkr.ac.in>';
-// const FROM   = process.env.EMAIL_FROM || 'RideShare <onboarding@resend.dev>';
+// Public base URL of the site (no trailing slash) — used to embed the site
+// logo into email templates. Set APP_URL in .env, e.g. "https://rideshare.com".
+const APP_URL = (process.env.APP_URL || process.env.FRONTEND_URL || '').replace(/\/+$/, '');
+const LOGO_URL = APP_URL ? `${APP_URL}/icons/icon-192.png` : null;
 
-// // ─── Nodemailer fallback transport ────────────────────────────────────────────
-// let _smtpTransport = null;
-// const getSmtpTransport = () => {
-//   if (!_smtpTransport) {
-//     _smtpTransport = nodemailer.createTransport({
-//       host  : process.env.SMTP_HOST || 'smtp.gmail.com',
-//       port  : parseInt(process.env.SMTP_PORT, 10) || 587,
-//       secure: false,
-//       auth  : {
-//         user: process.env.SMTP_USER,
-//         pass: process.env.SMTP_PASS,
-//       },
-//     });
-//   }
-//   return _smtpTransport;
-// };
+// Support/admin address shown in the frontend footer — used for domain
+// request notifications. Override with ADMIN_EMAIL / HEALTH_ALERT_EMAIL.
+const SUPPORT_EMAIL =
+  process.env.ADMIN_EMAIL || process.env.HEALTH_ALERT_EMAIL || null;
 
-// // ─── Core send function (Resend → Nodemailer fallback) ─────────────────────────
-// const sendEmail = async ({ to, subject, html }) => {
-//   const recipient = Array.isArray(to) ? to : [to];
+// Shared branded email header (logo + wordmark). Falls back to text-only
+// when APP_URL isn't configured (email clients block remote images anyway).
+const brandHeader = (tagline) => `
+  <div class="header">
+    ${LOGO_URL ? `<img src="${LOGO_URL}" alt="RideShare logo" width="48" height="48" style="border-radius:12px;margin-bottom:8px" />` : ''}
+    <h1>🚗 RideShare</h1>
+    <p>${tagline}</p>
+  </div>`;
 
-//   // Try Resend first
-//   if (resend) {
-//     try {
-//       // const result = await resend.emails.send({
-//       //   from   : FROM,
-//       //   to     : recipient,
-//       //   subject,
-//       //   html,
-//       // });
-//       // console.log(`📧 [Resend] Email sent to ${recipient.join(', ')}:`, result.id);
-//       // return { success: true, provider: 'resend', id: result.id };
-
-//       const { data, error } = await resend.emails.send({
-//   from: FROM,
-//   to: recipient,
-//   subject,
-//   html,
-// });
-
-// if (error) {
-//   console.error('❌ [Resend] Error:', error);
-//   throw new Error(error.message || 'Resend failed');
-// }
-
-// console.log(`✅ [Resend] Email sent to ${recipient.join(', ')}:`, data?.id);
-// return { success: true, provider: 'resend', id: data?.id };
-
-//     } catch (err) {
-//       console.warn('⚠️  Resend failed, trying SMTP fallback:', err.message);
-//     }
-//   }
-
-//   // Fallback to Nodemailer SMTP
-//   if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-//     try {
-//       const transport = getSmtpTransport();
-//       const info      = await transport.sendMail({ from: FROM, to: recipient.join(', '), subject, html });
-//       console.log(`📧 [SMTP] Email sent to ${recipient.join(', ')}:`, info.messageId);
-//       return { success: true, provider: 'smtp', id: info.messageId };
-//     } catch (err) {
-//       console.error('❌ SMTP fallback also failed:', err.message);
-//       return { success: false, error: err.message };
-//     }
-//   }
-
-//   console.error('❌ No email provider configured (RESEND_API_KEY or SMTP_USER/PASS required)');
-//   return { success: false, error: 'No email provider configured' };
-// };
-
-const nodemailer = require('nodemailer');
-
-const FROM = process.env.EMAIL_FROM || 'RideShare <chapri3110@gmail.com>';
-
-let _smtpTransport = null;
-
-const getSmtpTransport = () => {
-  if (!_smtpTransport) {
-    _smtpTransport = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
-      port: Number(process.env.SMTP_PORT) || 587,
-      secure: false,
-      requireTLS: true,
-      family: 4,
-      connectionTimeout: 60000,
-      greetingTimeout: 60000,
-      socketTimeout: 60000,
-
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
-  }
-
-  return _smtpTransport;
-};
+const brandFooter = `<div class="footer">RideShare &nbsp;|&nbsp; Share rides. Split costs. Travel together.</div>`;
 
 const parseFrom = (from) => {
   const match = from.match(/^(.*?)\s*<(.+)>$/);
-
   if (match) {
-    return {
-      name: match[1].trim(),
-      email: match[2].trim(),
-    };
+    return { name: match[1].trim(), email: match[2].trim() };
   }
-
-  return {
-    name: 'RideShare',
-    email: from,
-  };
+  return { name: 'RideShare', email: from };
 };
 
+// Send via the Resend REST API (https://resend.com/docs/api-reference/emails/send-email)
+const sendViaResend = async (from, recipients, subject, html) => {
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ from, to: recipients, subject, html }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.message || `Resend error ${res.status}`);
+  return { success: true, provider: 'resend', id: data?.id };
+};
+
+// Send via the Brevo REST API (https://developers.brevo.com/docs/get-started)
+const sendViaBrevo = async (recipients, subject, html) => {
+  const sender = parseFrom(FROM);
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'api-key': process.env.BREVO_API_KEY,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      sender,
+      to: recipients.map((email) => ({ email })),
+      subject,
+      htmlContent: html,
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.message || `Brevo API error ${res.status}`);
+  return { success: true, provider: 'brevo-api', id: data?.messageId };
+};
+
+// ─── Core send function (Resend → Brevo fallback) ─────────────────────────────
 const sendEmail = async ({ to, subject, html }) => {
-  const recipient = Array.isArray(to) ? to : [to];
+  const recipients = Array.isArray(to) ? to : [to];
 
-  console.log('📨 Sending email to:', recipient);
-
-  // Brevo HTTP API first
+  const providers = [];
+  if (process.env.RESEND_API_KEY) {
+    providers.push(['Resend', () => sendViaResend(FROM, recipients, subject, html)]);
+  }
   if (process.env.BREVO_API_KEY) {
-    try {
-      console.log('🚀 Trying Brevo API...');
-
-      const sender = parseFrom(FROM);
-
-      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: {
-          accept: 'application/json',
-          'api-key': process.env.BREVO_API_KEY,
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          sender,
-          to: recipient.map((email) => ({ email })),
-          subject,
-          htmlContent: html,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        console.log('✅ Brevo API email sent:', data.messageId);
-        return {
-          success: true,
-          provider: 'brevo-api',
-          id: data.messageId,
-        };
-      }
-
-      console.error('❌ Brevo API failed:', data);
-      console.log('⚠️  Falling back to SMTP...');
-      // Fall through to SMTP fallback
-    } catch (err) {
-      console.error('❌ Brevo API error:', err.message);
-    }
-  } else {
-    console.warn('⚠️ BREVO_API_KEY missing, trying SMTP fallback');
+    providers.push(['Brevo', () => sendViaBrevo(recipients, subject, html)]);
   }
 
-  // SMTP fallback
-  if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+  if (providers.length === 0) {
+    console.error('❌ No email provider configured. Set RESEND_API_KEY and/or BREVO_API_KEY in .env');
+    return { success: false, error: 'No email provider configured (set RESEND_API_KEY or BREVO_API_KEY)' };
+  }
+
+  let lastError = null;
+  for (const [name, send] of providers) {
     try {
-      console.log('📧 Trying SMTP fallback...');
-
-      const transport = getSmtpTransport();
-
-      const info = await transport.sendMail({
-        from: FROM,
-        to: recipient.join(', '),
-        subject,
-        html,
-      });
-
-      console.log('✅ SMTP email sent:', info.messageId);
-
-      return {
-        success: true,
-        provider: 'smtp',
-        id: info.messageId,
-      };
+      const result = await send();
+      console.log(`✅ [${name}] Email sent to ${recipients.join(', ')}:`, result.id);
+      return result;
     } catch (err) {
-      console.error('❌ SMTP fallback also failed:', err.message);
-
-      return {
-        success: false,
-        provider: 'smtp',
-        error: err.message,
-      };
+      lastError = err;
+      console.warn(`⚠️  ${name} failed: ${err.message}`);
     }
   }
 
-  return {
-    success: false,
-    error: 'No email provider configured',
-  };
-};
-
-module.exports = {
-  sendEmail,
+  console.error('❌ All email providers failed:', lastError?.message);
+  return { success: false, error: lastError?.message };
 };
 
 
 // ─── HTML Templates ────────────────────────────────────────────────────────────
 /**
  * HTML-escape user-controlled data before interpolating it into email
- * templates below. `name`, `rollNo`, `from`, `to` etc. are all
+ * templates below. `name`, `identifier`, `from`, `to` etc. are all
  * user-supplied at registration/ride-creation time and are sent, unescaped,
  * inside emails to OTHER users — without this, a user could register with a
  * name like `<a href="https://evil.example">RideShare Support</a>` and have
@@ -268,10 +166,7 @@ const otpTemplate = (name, otp, purpose = 'email verification') => {
     html   : `<!DOCTYPE html><html><head><meta charset="UTF-8">${baseStyle}</head><body>
     <div class="wrapper">
       <div class="card">
-        <div class="header">
-          <h1>🚗 RideShare · NIT Kurukshetra</h1>
-          <p>Campus Ride-Sharing Platform</p>
-        </div>
+        ${brandHeader('Ride-Sharing & Carpooling Platform')}
         <div class="body">
           <h2>Hello, ${safeName}! 👋</h2>
           <p>Use the OTP below for <strong>${safePurpose}</strong>. It expires in <strong>5 minutes</strong>.</p>
@@ -282,32 +177,29 @@ const otpTemplate = (name, otp, purpose = 'email verification') => {
           <div class="divider"></div>
           <p style="font-size:12px;color:#94a3b8">If you didn't request this OTP, please ignore this email. Your account is safe.</p>
         </div>
-        <div class="footer">RideShare © NIT Kurukshetra &nbsp;|&nbsp; Secure Ride Sharing for Students</div>
+        ${brandFooter}
       </div>
     </div>
   </body></html>`,
   };
 };
 
-const rideRequestTemplate = (creatorName, requesterName, requesterRollNo, ride) => {
+const rideRequestTemplate = (creatorName, requesterName, requesterIdentifier, ride) => {
   const safeCreatorName   = escapeHtml(creatorName);
   const safeRequesterName = escapeHtml(requesterName);
-  const safeRollNo        = escapeHtml(requesterRollNo);
+  const safeIdentifier    = escapeHtml(requesterIdentifier);
   const safeFrom          = escapeHtml(ride.from);
   const safeTo            = escapeHtml(ride.to);
   const safeVehicleType   = escapeHtml(ride.vehicleType);
   return {
-    subject: `🚗 New Ride Request from ${safeRequesterName} (${safeRollNo})`,
+    subject: `🚗 New Ride Request from ${safeRequesterName} (${safeIdentifier})`,
     html   : `<!DOCTYPE html><html><head><meta charset="UTF-8">${baseStyle}</head><body>
     <div class="wrapper">
       <div class="card">
-        <div class="header">
-          <h1>🚗 RideShare · NIT Kurukshetra</h1>
-          <p>You have a new ride request!</p>
-        </div>
+        ${brandHeader('You have a new ride request!')}
         <div class="body">
           <h2>Hi ${safeCreatorName},</h2>
-          <p><strong>${safeRequesterName}</strong> (${safeRollNo}) wants to join your ride.</p>
+          <p><strong>${safeRequesterName}</strong> (${safeIdentifier}) wants to join your ride.</p>
           <div class="ride-card">
             <p>📍 <strong>From:</strong> ${safeFrom}</p>
             <p>🏁 <strong>To:</strong> ${safeTo}</p>
@@ -318,7 +210,7 @@ const rideRequestTemplate = (creatorName, requesterName, requesterRollNo, ride) 
           </div>
           <p>Log in to RideShare to <strong>accept</strong> or <strong>reject</strong> this request.</p>
         </div>
-        <div class="footer">RideShare © NIT Kurukshetra &nbsp;|&nbsp; Secure Ride Sharing for Students</div>
+        ${brandFooter}
       </div>
     </div>
   </body></html>`,
@@ -336,10 +228,7 @@ const requestStatusTemplate = (requesterName, status, ride, creatorName) => {
     html   : `<!DOCTYPE html><html><head><meta charset="UTF-8">${baseStyle}</head><body>
       <div class="wrapper">
         <div class="card">
-          <div class="header">
-            <h1>🚗 RideShare · NIT Kurukshetra</h1>
-            <p>Request Update</p>
-          </div>
+          ${brandHeader('Request Update')}
           <div class="body">
             <h2>Hi ${safeRequesterName},</h2>
             <p>Your ride request has been
@@ -359,7 +248,36 @@ const requestStatusTemplate = (requesterName, status, ride, creatorName) => {
               : '<p>Don\'t worry — there are more rides available. Log in to search for other options.</p>'
             }
           </div>
-          <div class="footer">RideShare © NIT Kurukshetra &nbsp;|&nbsp; Secure Ride Sharing for Students</div>
+          ${brandFooter}
+        </div>
+      </div>
+    </body></html>`,
+  };
+};
+
+/**
+ * Notify the site admin that a user tried to sign up with an unregistered
+ * organization domain, so they can review and activate it.
+ */
+const domainRequestTemplate = (domain, requesterEmail) => {
+  const safeDomain   = escapeHtml(domain);
+  const safeRequester = escapeHtml(requesterEmail);
+  return {
+    subject: `🌐 New organization domain request: ${safeDomain}`,
+    html   : `<!DOCTYPE html><html><head><meta charset="UTF-8">${baseStyle}</head><body>
+      <div class="wrapper">
+        <div class="card">
+          ${brandHeader('New Domain Request')}
+          <div class="body">
+            <h2>Action needed: review domain request</h2>
+            <p>A user tried to sign up with an organization email domain that isn't registered yet.</p>
+            <div class="ride-card">
+              <p>🌐 <strong>Domain:</strong> ${safeDomain}</p>
+              <p>📧 <strong>Requested by:</strong> ${safeRequester}</p>
+            </div>
+            <p>A <strong>PENDING</strong> record has been created in the Domains table. Once you verify it's a genuine organization, mark it <strong>ACTIVE</strong> in the admin panel (Domains section) to allow signups from that domain.</p>
+          </div>
+          ${brandFooter}
         </div>
       </div>
     </body></html>`,
@@ -370,14 +288,24 @@ const requestStatusTemplate = (requesterName, status, ride, creatorName) => {
 const sendOTPEmail = (email, name, otp, purpose) =>
   sendEmail({ to: email, ...otpTemplate(name, otp, purpose) });
 
-const sendRideRequestEmail = (creatorEmail, creatorName, requesterName, requesterRollNo, ride) =>
-  sendEmail({ to: creatorEmail, ...rideRequestTemplate(creatorName, requesterName, requesterRollNo, ride) });
+const sendRideRequestEmail = (creatorEmail, creatorName, requesterName, requesterIdentifier, ride) =>
+  sendEmail({ to: creatorEmail, ...rideRequestTemplate(creatorName, requesterName, requesterIdentifier, ride) });
 
 const sendRequestStatusEmail = (requesterEmail, requesterName, status, ride, creatorName) =>
   sendEmail({ to: requesterEmail, ...requestStatusTemplate(requesterName, status, ride, creatorName) });
 
+const sendDomainRequestEmail = (domain, requesterEmail) => {
+  if (!SUPPORT_EMAIL) {
+    console.warn('⚠️  No ADMIN_EMAIL/HEALTH_ALERT_EMAIL configured — domain request email skipped.');
+    return Promise.resolve({ success: false, error: 'No admin email configured' });
+  }
+  return sendEmail({ to: SUPPORT_EMAIL, ...domainRequestTemplate(domain, requesterEmail) });
+};
+
 module.exports = {
+  sendEmail,
   sendOTPEmail,
   sendRideRequestEmail,
   sendRequestStatusEmail,
+  sendDomainRequestEmail,
 };

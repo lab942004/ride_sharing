@@ -1,4 +1,4 @@
-const prisma = require('../config/db');
+﻿const prisma = require('../config/db');
 const { MAX_RIDE_DAYS_AHEAD } = require('../config/constants');
 const { getRideDepartureDate, isRideExpired } = require('../utils/rideTime.utils');
 const { sendPushToDomain } = require('./push.service');
@@ -6,7 +6,7 @@ const { sendPushToDomain } = require('./push.service');
 const appError = (message, statusCode = 400) =>
   Object.assign(new Error(message), { statusCode });
 
-// ─── Create Ride ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ Create Ride â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 /**
  * Business rules:
  *  1. Combined date + time must be in the future (not just the date).
@@ -39,20 +39,20 @@ const createRide = async (userId, domain, data) => {
 
   const ride = await prisma.ride.create({
     data   : { from, to, date: new Date(date), time, vehicleType, availableSeats, domain, createdById: userId },
-    include: { createdBy: { select: { id: true, name: true, rollNo: true, email: true } } },
+    include: { createdBy: { select: { id: true, name: true, identifier: true, identifierType: true, email: true } } },
   });
 
-  // ── Web push notification to everyone in the domain (non-blocking) ────────
+  // â”€â”€ Web push notification to everyone in the domain (non-blocking) â”€â”€â”€â”€â”€â”€â”€â”€
   sendPushToDomain(domain, {
     title: 'New ride available',
     body : `A new ride from ${from} to ${to} on ${date} at ${time} (${vehicleType}) has been published`,
-    url  : '/#/',
+    url  : '/',
   }).catch((err) => console.error('Push notification failed:', err.message));
 
   return ride;
 };
 
-// ─── Get Rides (with search + filters) ───────────────────────────────────────
+// â”€â”€â”€ Get Rides (with search + filters) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 /**
  * Only shows rides belonging to the same college domain.
  * Excludes rides whose departure has already passed (isExpired = false AND departure > now).
@@ -68,10 +68,10 @@ const getRides = async (domain, filters = {}, userId) => {
   const where = {
     domain,
     isExpired     : false,
-    // We filter by the date column ≥ today; precise time filtering happens in-memory
+    // We filter by the date column â‰¥ today; precise time filtering happens in-memory
     // via isRideExpired util, but DB-level we cut down rows efficiently. Ride dates
     // are stored as UTC midnight (new Date("YYYY-MM-DD")), so the boundary here must
-    // also be UTC midnight — building it from the server's local Y/M/D (the old code)
+    // also be UTC midnight â€” building it from the server's local Y/M/D (the old code)
     // drifts off that by the server's timezone offset and can wrongly exclude/include
     // rows right at the day boundary.
     date          : { gte: new Date(now.toISOString().slice(0, 10)) },
@@ -96,7 +96,7 @@ const getRides = async (domain, filters = {}, userId) => {
       take   : Number(limit),
       orderBy: [{ date: 'asc' }],
       include: {
-        createdBy: { select: { id: true, name: true, rollNo: true } },
+        createdBy: { select: { id: true, name: true, identifier: true, identifierType: true } },
         _count   : { select: { requests: { where: { status: 'ACCEPTED' } } } },
       },
     }),
@@ -126,15 +126,15 @@ const getRides = async (domain, filters = {}, userId) => {
   };
 };
 
-// ─── Get Ride By ID ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Get Ride By ID â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const getRideById = async (rideId, domain) => {
   const ride = await prisma.ride.findFirst({
     where  : { id: rideId, domain },
     include: {
-      createdBy: { select: { id: true, name: true, rollNo: true } },
+      createdBy: { select: { id: true, name: true, identifier: true, identifierType: true } },
       requests : {
         where  : { status: 'ACCEPTED' },
-        include: { requester: { select: { id: true, name: true, rollNo: true } } },
+        include: { requester: { select: { id: true, name: true, identifier: true, identifierType: true } } },
       },
     },
   });
@@ -142,7 +142,7 @@ const getRideById = async (rideId, domain) => {
   return { ...ride, isFull: ride.availableSeats === 0 || ride.isFull };
 };
 
-// ─── Delete Ride ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ Delete Ride â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const deleteRide = async (rideId, userId) => {
   const ride = await prisma.ride.findUnique({ where: { id: rideId } });
   if (!ride)                     throw appError('Ride not found', 404);
@@ -152,7 +152,7 @@ const deleteRide = async (rideId, userId) => {
   return { message: 'Ride deleted successfully' };
 };
 
-// ─── Get My Rides ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ Get My Rides â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const getMyRides = async (userId) => {
   const rides = await prisma.ride.findMany({
     where  : { createdById: userId },
@@ -161,7 +161,7 @@ const getMyRides = async (userId) => {
       _count  : { select: { requests: true } },
       requests: {
         where  : { status: 'ACCEPTED' },
-        include: { requester: { select: { id: true, name: true, rollNo: true } } },
+        include: { requester: { select: { id: true, name: true, identifier: true, identifierType: true } } },
       },
     },
   });

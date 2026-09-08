@@ -25,6 +25,8 @@ export default function MobileBottomAd({ enabled = true, compact = true }) {
         'md:hidden fixed bottom-0 inset-x-0 z-40',
         'bg-cream/95',
         'border-t border-amber-100',
+        // Keep the ad clear of the iPhone home-indicator safe area.
+        'pb-safe',
         // Compact strip: no drop shadow and zero vertical padding so the bar is
         // only as tall as the ad itself. Non-compact keeps a subtle shadow.
         compact

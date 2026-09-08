@@ -3,8 +3,17 @@ import { useNavigate } from 'react-router'
 import { ridesAPI } from '../services/api'
 import { useToast } from '../context/ToastContext'
 import LocationPicker from '../components/LocationPicker'
+import { usePageMeta } from '../hooks/usePageMeta'
 
 export default function CreateRide() {
+  usePageMeta({
+    title: 'Post a Ride',
+    description:
+      'Publish a shared ride on RideShare. Set your route, date, time, vehicle and available seats — then connect with verified students heading the same way.',
+    keywords: 'post a ride, create carpool, share ride, publish ride, offer seats, carpool organizer',
+    path: '/create-ride',
+  })
+
   const [form, setForm] = useState({
     date: '', time: '', vehicleType: '', availableSeats: ''
   })

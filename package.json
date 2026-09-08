@@ -2,7 +2,7 @@
   "name": "ride_share_monorepo",
   "version": "1.0.0",
   "private": true,
-  "description": "Monorepo root for RideShare NIT KKR — backend + frontend",
+  "description": "Monorepo root for RideShare RideShare — backend + frontend",
   "scripts": {
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "cd backend && npm run dev",
@@ -32,5 +32,8 @@
   },
   "dependencies": {
     "date-fns": "^3.6.0"
+  },
+  "overrides": {
+    "qs": "^6.16.0"
   }
 }
