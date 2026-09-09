@@ -19,8 +19,10 @@ const LOGO_URL = APP_URL ? `${APP_URL}/icons/icon-192.png` : null;
 
 // Support/admin address shown in the frontend footer — used for domain
 // request notifications. Override with ADMIN_EMAIL / HEALTH_ALERT_EMAIL.
-const SUPPORT_EMAIL =
-  process.env.ADMIN_EMAIL || process.env.HEALTH_ALERT_EMAIL || null;
+const SUPPORT_EMAIL = (process.env.ADMIN_EMAIL || process.env.HEALTH_ALERT_EMAIL || '')
+  .split(',')
+  .map((email) => email.trim())
+  .filter(Boolean);
 
 // Shared branded email header (logo + wordmark). Falls back to text-only
 // when APP_URL isn't configured (email clients block remote images anyway).
