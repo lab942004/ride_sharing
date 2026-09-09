@@ -10,7 +10,7 @@ All responses follow the envelope:
 {
   "success": true,
   "message": "Human-readable message",
-  "data": { }
+  "data": {}
 }
 ```
 
@@ -37,6 +37,7 @@ Error responses include a `statusCode` field and an optional `errors` array for 
 Public endpoint. Returns server and DB status.
 
 **Response 200**
+
 ```json
 {
   "status": "ok",
@@ -45,6 +46,12 @@ Public endpoint. Returns server and DB status.
   "database": "connected"
 }
 ```
+
+The endpoint returns **503** with the same response shape and a `degraded`
+status when the database is not connected. Configure an external uptime monitor (for example UptimeRobot,
+Better Uptime, or a Render Cron Job) to request the deployed `/health` URL at
+least every 10 minutes. A cron job inside this Node process cannot wake a
+sleeping Render web service.
 
 ---
 
@@ -59,17 +66,19 @@ All auth routes are public unless noted. OTP endpoints are rate-limited to **5 r
 Send a 6-digit OTP to a college email for email verification.
 
 **Request Body**
+
 ```json
 {
   "email": "student1@yourcollege.edu"
 }
 ```
 
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `email` | string | ✅ | Must be an allowed domain (`@yourcollege.edu`) |
+| Field   | Type   | Required | Notes                                          |
+| ------- | ------ | -------- | ---------------------------------------------- |
+| `email` | string | ✅       | Must be an allowed domain (`@yourcollege.edu`) |
 
 **Response 200**
+
 ```json
 {
   "success": true,
@@ -78,6 +87,7 @@ Send a 6-digit OTP to a college email for email verification.
 ```
 
 **Errors**
+
 - `400` — Email domain not allowed
 - `429` — OTP rate limit exceeded
 
@@ -88,6 +98,7 @@ Send a 6-digit OTP to a college email for email verification.
 Verify the OTP. Creates a 30-minute window to complete registration.
 
 **Request Body**
+
 ```json
 {
   "email": "student1@yourcollege.edu",
@@ -95,12 +106,13 @@ Verify the OTP. Creates a 30-minute window to complete registration.
 }
 ```
 
-| Field | Type | Required |
-|---|---|---|
-| `email` | string | ✅ |
-| `otp` | string (6 digits) | ✅ |
+| Field   | Type              | Required |
+| ------- | ----------------- | -------- |
+| `email` | string            | ✅       |
+| `otp`   | string (6 digits) | ✅       |
 
 **Response 200**
+
 ```json
 {
   "success": true,
@@ -110,6 +122,7 @@ Verify the OTP. Creates a 30-minute window to complete registration.
 ```
 
 **Errors**
+
 - `400` — No OTP found, OTP expired, or invalid OTP
 
 ---
@@ -119,6 +132,7 @@ Verify the OTP. Creates a 30-minute window to complete registration.
 Create a new account. Requires prior OTP verification (within 30 minutes).
 
 **Request Body**
+
 ```json
 {
   "name": "Rahul Sharma",
@@ -129,15 +143,16 @@ Create a new account. Requires prior OTP verification (within 30 minutes).
 }
 ```
 
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `name` | string | ✅ | 2–100 characters |
-| `rollNo` | string | ✅ | University roll number, unique |
-| `email` | string | ✅ | Must be an allowed domain |
-| `password` | string | ✅ | Min 8 characters |
-| `phone` | string | ❌ | 10-digit Indian mobile number |
+| Field      | Type   | Required | Notes                          |
+| ---------- | ------ | -------- | ------------------------------ |
+| `name`     | string | ✅       | 2–100 characters               |
+| `rollNo`   | string | ✅       | University roll number, unique |
+| `email`    | string | ✅       | Must be an allowed domain      |
+| `password` | string | ✅       | Min 8 characters               |
+| `phone`    | string | ❌       | 10-digit Indian mobile number  |
 
 **Response 201**
+
 ```json
 {
   "success": true,
@@ -158,6 +173,7 @@ Create a new account. Requires prior OTP verification (within 30 minutes).
 ```
 
 **Errors**
+
 - `400` — Email not verified, or verification window expired
 - `409` — Email or roll number already registered
 
@@ -168,6 +184,7 @@ Create a new account. Requires prior OTP verification (within 30 minutes).
 Authenticate with email and password.
 
 **Request Body**
+
 ```json
 {
   "email": "student1@yourcollege.edu",
@@ -176,6 +193,7 @@ Authenticate with email and password.
 ```
 
 **Response 200**
+
 ```json
 {
   "success": true,
@@ -196,6 +214,7 @@ Authenticate with email and password.
 ```
 
 **Errors**
+
 - `401` — Invalid email or password
 - `403` — Email not verified
 
@@ -206,11 +225,13 @@ Authenticate with email and password.
 Exchange a valid refresh token for a new access token and rotated refresh token.
 
 **Request Body**
+
 ```json
 { "refreshToken": "<jwt>" }
 ```
 
 **Response 200**
+
 ```json
 {
   "success": true,
@@ -223,6 +244,7 @@ Exchange a valid refresh token for a new access token and rotated refresh token.
 ```
 
 **Errors**
+
 - `401` — Invalid, expired, or revoked refresh token
 
 ---
@@ -232,11 +254,13 @@ Exchange a valid refresh token for a new access token and rotated refresh token.
 Revoke the refresh token (server-side). Idempotent.
 
 **Request Body**
+
 ```json
 { "refreshToken": "<jwt>" }
 ```
 
 **Response 200**
+
 ```json
 { "success": true, "message": "Logged out successfully" }
 ```
@@ -248,11 +272,13 @@ Revoke the refresh token (server-side). Idempotent.
 Initiate password reset. Sends an OTP to the registered email. Always returns the same message to prevent user enumeration.
 
 **Request Body**
+
 ```json
 { "emailOrPhone": "student1@yourcollege.edu" }
 ```
 
 **Response 200**
+
 ```json
 {
   "success": true,
@@ -267,6 +293,7 @@ Initiate password reset. Sends an OTP to the registered email. Always returns th
 Reset password using the OTP from `forgot-password`.
 
 **Request Body**
+
 ```json
 {
   "email": "student1@yourcollege.edu",
@@ -276,6 +303,7 @@ Reset password using the OTP from `forgot-password`.
 ```
 
 **Response 200**
+
 ```json
 {
   "success": true,
@@ -284,6 +312,7 @@ Reset password using the OTP from `forgot-password`.
 ```
 
 **Errors**
+
 - `400` — No OTP found, expired, or invalid
 
 ---
@@ -293,6 +322,7 @@ Reset password using the OTP from `forgot-password`.
 Return the authenticated user's profile from the JWT.
 
 **Response 200**
+
 ```json
 {
   "success": true,
@@ -322,6 +352,7 @@ All routes require authentication (`🔒`). Rides are **domain-scoped** — user
 Create a new ride.
 
 **Request Body**
+
 ```json
 {
   "from": "NIT yourcity Gate 1",
@@ -333,16 +364,17 @@ Create a new ride.
 }
 ```
 
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `from` | string | ✅ | Departure location |
-| `to` | string | ✅ | Destination |
-| `date` | string (YYYY-MM-DD) | ✅ | Max 7 days ahead |
-| `time` | string (HH:MM) | ✅ | 24-hour format |
-| `vehicleType` | string | ✅ | One of: `Car`, `Bike`, `Auto`, `Bus`, `Other` |
-| `availableSeats` | integer | ✅ | 1–10 |
+| Field            | Type                | Required | Notes                                         |
+| ---------------- | ------------------- | -------- | --------------------------------------------- |
+| `from`           | string              | ✅       | Departure location                            |
+| `to`             | string              | ✅       | Destination                                   |
+| `date`           | string (YYYY-MM-DD) | ✅       | Max 7 days ahead                              |
+| `time`           | string (HH:MM)      | ✅       | 24-hour format                                |
+| `vehicleType`    | string              | ✅       | One of: `Car`, `Bike`, `Auto`, `Bus`, `Other` |
+| `availableSeats` | integer             | ✅       | 1–10                                          |
 
 **Response 201**
+
 ```json
 {
   "success": true,
@@ -374,22 +406,25 @@ List available rides for the user's domain. Supports filtering.
 
 **Query Parameters**
 
-| Param | Type | Notes |
-|---|---|---|
-| `from` | string | Filter by departure location (partial match) |
-| `to` | string | Filter by destination (partial match) |
-| `date` | string (YYYY-MM-DD) | Filter by date |
-| `vehicleType` | string | Filter by vehicle type |
-| `page` | integer | Page number (default: 1) |
-| `limit` | integer | Items per page (default: 10, max: 50) |
+| Param         | Type                | Notes                                        |
+| ------------- | ------------------- | -------------------------------------------- |
+| `from`        | string              | Filter by departure location (partial match) |
+| `to`          | string              | Filter by destination (partial match)        |
+| `date`        | string (YYYY-MM-DD) | Filter by date                               |
+| `vehicleType` | string              | Filter by vehicle type                       |
+| `page`        | integer             | Page number (default: 1)                     |
+| `limit`       | integer             | Items per page (default: 10, max: 50)        |
 
 **Response 200**
+
 ```json
 {
   "success": true,
   "message": "Rides fetched successfully",
   "data": {
-    "rides": [ /* array of ride objects */ ],
+    "rides": [
+      /* array of ride objects */
+    ],
     "pagination": {
       "total": 42,
       "page": 1,
@@ -407,12 +442,15 @@ List available rides for the user's domain. Supports filtering.
 Return all rides created by the authenticated user.
 
 **Response 200**
+
 ```json
 {
   "success": true,
   "message": "Your rides fetched",
   "data": {
-    "rides": [ /* array of ride objects with requests included */ ]
+    "rides": [
+      /* array of ride objects with requests included */
+    ]
   }
 }
 ```
@@ -424,17 +462,21 @@ Return all rides created by the authenticated user.
 Fetch a single ride by ID.
 
 **Response 200**
+
 ```json
 {
   "success": true,
   "message": "Ride details fetched",
   "data": {
-    "ride": { /* ride object */ }
+    "ride": {
+      /* ride object */
+    }
   }
 }
 ```
 
 **Errors**
+
 - `404` — Ride not found or belongs to another domain
 
 ---
@@ -444,11 +486,13 @@ Fetch a single ride by ID.
 Delete a ride created by the authenticated user. Also cascades to all related requests and chats.
 
 **Response 200**
+
 ```json
 { "success": true, "message": "Ride deleted successfully" }
 ```
 
 **Errors**
+
 - `403` — Not the ride owner
 - `404` — Ride not found
 
@@ -465,11 +509,13 @@ All routes require authentication (`🔒`).
 Send a join request for a ride.
 
 **Request Body**
+
 ```json
 { "rideId": "uuid" }
 ```
 
 **Response 201**
+
 ```json
 {
   "success": true,
@@ -490,6 +536,7 @@ Send a join request for a ride.
 A `new_request` Socket.io event is emitted to the ride owner's room.
 
 **Errors**
+
 - `400` — Already requested, ride is full, or user owns the ride
 - `404` — Ride not found
 
@@ -500,13 +547,18 @@ A `new_request` Socket.io event is emitted to the ride owner's room.
 Return all incoming and outgoing requests for the authenticated user.
 
 **Response 200**
+
 ```json
 {
   "success": true,
   "message": "Requests fetched",
   "data": {
-    "incoming": [ /* requests on rides I created */ ],
-    "outgoing": [ /* requests I sent */ ]
+    "incoming": [
+      /* requests on rides I created */
+    ],
+    "outgoing": [
+      /* requests I sent */
+    ]
   }
 }
 ```
@@ -518,15 +570,17 @@ Return all incoming and outgoing requests for the authenticated user.
 Accept or reject an incoming request (ride owner only).
 
 **Request Body**
+
 ```json
 { "status": "ACCEPTED" }
 ```
 
-| Field | Type | Notes |
-|---|---|---|
+| Field    | Type   | Notes                    |
+| -------- | ------ | ------------------------ |
 | `status` | string | `ACCEPTED` or `REJECTED` |
 
 **Response 200**
+
 ```json
 {
   "success": true,
@@ -544,6 +598,7 @@ Accept or reject an incoming request (ride owner only).
 Accepting a request automatically creates a `Chat` room and emits a `request_status` Socket.io event to the requester.
 
 **Errors**
+
 - `403` — Not the ride owner or request already processed
 - `404` — Request not found
 
@@ -554,6 +609,7 @@ Accepting a request automatically creates a `Chat` room and emits a `request_sta
 Toggle phone number sharing for an accepted request. Either participant can call this.
 
 **Response 200**
+
 ```json
 {
   "success": true,
@@ -567,6 +623,7 @@ Toggle phone number sharing for an accepted request. Either participant can call
 ```
 
 **Errors**
+
 - `400` — Request is not in ACCEPTED status
 - `403` — Not a participant in this request
 
@@ -583,6 +640,7 @@ All routes require authentication (`🔒`). Identified by `requestId` (the accep
 Fetch chat metadata including participant info and ride details.
 
 **Response 200**
+
 ```json
 {
   "success": true,
@@ -593,7 +651,7 @@ Fetch chat metadata including participant info and ride details.
       "requestId": "uuid",
       "participants": [
         { "id": "uuid", "name": "Rahul Sharma", "rollNo": "21CS001" },
-        { "id": "uuid", "name": "Priya Patel",  "rollNo": "21EC042" }
+        { "id": "uuid", "name": "Priya Patel", "rollNo": "21EC042" }
       ],
       "ride": {
         "from": "NIT Gate 1",
@@ -607,6 +665,7 @@ Fetch chat metadata including participant info and ride details.
 ```
 
 **Errors**
+
 - `403` — Not a participant in this chat
 - `404` — Chat not found
 
@@ -618,12 +677,13 @@ Fetch paginated message history (newest first).
 
 **Query Parameters**
 
-| Param | Type | Default |
-|---|---|---|
-| `page` | integer | `1` |
-| `limit` | integer | `50` |
+| Param   | Type    | Default |
+| ------- | ------- | ------- |
+| `page`  | integer | `1`     |
+| `limit` | integer | `50`    |
 
 **Response 200**
+
 ```json
 {
   "success": true,
@@ -653,11 +713,13 @@ Fetch paginated message history (newest first).
 Send a message via REST (Socket.io `send_message` event is the preferred real-time path).
 
 **Request Body**
+
 ```json
 { "text": "I'll be there in 5 minutes!" }
 ```
 
 **Response 201**
+
 ```json
 {
   "success": true,
@@ -686,6 +748,7 @@ All routes require authentication (`🔒`).
 Fetch the authenticated user's profile with ride and request counts.
 
 **Response 200**
+
 ```json
 {
   "success": true,
@@ -716,6 +779,7 @@ Fetch the authenticated user's profile with ride and request counts.
 Update name and/or phone number.
 
 **Request Body** (all fields optional)
+
 ```json
 {
   "name": "Rahul K. Sharma",
@@ -726,6 +790,7 @@ Update name and/or phone number.
 Pass `"phone": null` to remove the phone number.
 
 **Response 200**
+
 ```json
 {
   "success": true,
@@ -750,6 +815,7 @@ Pass `"phone": null` to remove the phone number.
 Change password. Revokes all existing refresh tokens (forces re-login on all devices).
 
 **Request Body**
+
 ```json
 {
   "currentPassword": "OldPass@123",
@@ -758,6 +824,7 @@ Change password. Revokes all existing refresh tokens (forces re-login on all dev
 ```
 
 **Response 200**
+
 ```json
 {
   "success": true,
@@ -766,6 +833,7 @@ Change password. Revokes all existing refresh tokens (forces re-login on all dev
 ```
 
 **Errors**
+
 - `400` — Current password is incorrect
 
 ---
@@ -779,47 +847,47 @@ The backend uses **Socket.io**. Connect to the same origin as the HTTP server.
 Send the access token as a query parameter on connect:
 
 ```javascript
-const socket = io('http://localhost:5000', {
-  auth: { token: 'Bearer <accessToken>' }
-})
+const socket = io("http://localhost:5000", {
+  auth: { token: "Bearer <accessToken>" },
+});
 ```
 
 ---
 
 ### Client → Server
 
-| Event | Payload | Description |
-|---|---|---|
-| `join_chat` | `{ requestId: "uuid" }` | Join a chat room identified by `requestId` |
-| `leave_chat` | `{ requestId: "uuid" }` | Leave a chat room |
-| `send_message` | `{ requestId: "uuid", text: "..." }` | Send a message to a chat room |
-| `typing` | `{ requestId: "uuid" }` | Notify other participant you're typing |
-| `stop_typing` | `{ requestId: "uuid" }` | Notify other participant you stopped typing |
+| Event          | Payload                              | Description                                 |
+| -------------- | ------------------------------------ | ------------------------------------------- |
+| `join_chat`    | `{ requestId: "uuid" }`              | Join a chat room identified by `requestId`  |
+| `leave_chat`   | `{ requestId: "uuid" }`              | Leave a chat room                           |
+| `send_message` | `{ requestId: "uuid", text: "..." }` | Send a message to a chat room               |
+| `typing`       | `{ requestId: "uuid" }`              | Notify other participant you're typing      |
+| `stop_typing`  | `{ requestId: "uuid" }`              | Notify other participant you stopped typing |
 
 ---
 
 ### Server → Client
 
-| Event | Payload | Description |
-|---|---|---|
-| `joined_chat` | `{ requestId: "uuid" }` | Confirmation that you joined the room |
-| `new_message` | Message object (see Chat messages) | A new message was sent in the chat room |
-| `user_typing` | `{ userId: "uuid", name: "..." }` | Another participant is typing |
-| `user_stop_typing` | `{ userId: "uuid" }` | Another participant stopped typing |
-| `new_request` | Request object | (Ride owner) Someone requested your ride |
-| `request_status` | `{ requestId: "uuid", status: "ACCEPTED"\|"REJECTED" }` | (Requester) Your request status changed |
-| `error` | `{ message: "..." }` | An error occurred (e.g. not a participant) |
+| Event              | Payload                                                 | Description                                |
+| ------------------ | ------------------------------------------------------- | ------------------------------------------ |
+| `joined_chat`      | `{ requestId: "uuid" }`                                 | Confirmation that you joined the room      |
+| `new_message`      | Message object (see Chat messages)                      | A new message was sent in the chat room    |
+| `user_typing`      | `{ userId: "uuid", name: "..." }`                       | Another participant is typing              |
+| `user_stop_typing` | `{ userId: "uuid" }`                                    | Another participant stopped typing         |
+| `new_request`      | Request object                                          | (Ride owner) Someone requested your ride   |
+| `request_status`   | `{ requestId: "uuid", status: "ACCEPTED"\|"REJECTED" }` | (Requester) Your request status changed    |
+| `error`            | `{ message: "..." }`                                    | An error occurred (e.g. not a participant) |
 
 ---
 
 ## Error Codes
 
-| HTTP Status | Meaning |
-|---|---|
-| `400` | Bad request / validation error |
-| `401` | Unauthenticated — missing or expired access token |
-| `403` | Forbidden — authenticated but not authorized |
-| `404` | Resource not found |
-| `409` | Conflict — duplicate resource (e.g. already registered) |
-| `429` | Too Many Requests — rate limit exceeded |
-| `500` | Internal server error |
+| HTTP Status | Meaning                                                 |
+| ----------- | ------------------------------------------------------- |
+| `400`       | Bad request / validation error                          |
+| `401`       | Unauthenticated — missing or expired access token       |
+| `403`       | Forbidden — authenticated but not authorized            |
+| `404`       | Resource not found                                      |
+| `409`       | Conflict — duplicate resource (e.g. already registered) |
+| `429`       | Too Many Requests — rate limit exceeded                 |
+| `500`       | Internal server error                                   |

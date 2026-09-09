@@ -11,6 +11,7 @@
     "prisma:reset": "prisma migrate reset --force",
     "seed": "node prisma/seed.js",
     "start": "node src/server.js",
+    "health:ping": "node scripts/health-ping.js",
     "dev": "nodemon src/server.js"
   },
   "dependencies": {

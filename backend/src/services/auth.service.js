@@ -32,15 +32,12 @@ const sendOTPService = async (email, name, purpose = 'email verification', accou
     // Not gmail and not an active organization domain → handle per branch.
     const domain = extractDomain(email);
     if (accountType === 'organization' && domain) {
-      const existing = await findDomainRecord(domain);
       // Track the request (creates PENDING record or refreshes requestedAt)
       await upsertPendingDomain(domain);
-      // Notify the site admin (non-blocking, only on first-ever request)
-      if (!existing) {
-        sendDomainRequestEmail(domain, email).catch((err) =>
-          console.error('❌ Domain request email failed:', err.message)
-        );
-      }
+      // Notify the site admin for every rejected signup attempt.
+      sendDomainRequestEmail(domain, email).catch((err) =>
+        console.error('❌ Domain request email failed:', err.message)
+      );
       throw Object.assign(
         new Error(
           `We don't have ${domain} registered yet. It will typically be available within 1 day. ` +

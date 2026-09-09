@@ -98,8 +98,8 @@ app.get('/health', async (_req, res) => {
     dbStatus = 'connected';
   } catch { /* ignore */ }
 
-  res.json({
-    status   : 'ok',
+  res.status(dbStatus === 'connected' ? 200 : 503).json({
+    status   : dbStatus === 'connected' ? 'ok' : 'degraded',
     timestamp: new Date().toISOString(),
     env      : process.env.NODE_ENV || 'development',
     database : dbStatus,

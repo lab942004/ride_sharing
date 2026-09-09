@@ -51,15 +51,15 @@ ride_share/
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Frontend | React 18, Vite, Tailwind CSS, React Router v6, Axios, Socket.io-client, Zustand, date-fns |
-| Backend | Node.js ≥ 18, Express 4, Socket.io 4, Prisma 5 (ORM) |
-| Database | PostgreSQL |
-| Auth | JWT (access + refresh tokens), bcryptjs, OTP via email |
-| Email | Resend API (primary), Nodemailer / SMTP (fallback) |
-| Validation | Zod (backend), Axios interceptors (frontend) |
-| Jobs | node-cron (expired ride cleanup) |
+| Layer      | Technology                                                                                |
+| ---------- | ----------------------------------------------------------------------------------------- |
+| Frontend   | React 18, Vite, Tailwind CSS, React Router v6, Axios, Socket.io-client, Zustand, date-fns |
+| Backend    | Node.js ≥ 18, Express 4, Socket.io 4, Prisma 5 (ORM)                                      |
+| Database   | PostgreSQL                                                                                |
+| Auth       | JWT (access + refresh tokens), bcryptjs, OTP via email                                    |
+| Email      | Resend API (primary), Nodemailer / SMTP (fallback)                                        |
+| Validation | Zod (backend), Axios interceptors (frontend)                                              |
+| Jobs       | node-cron (expired ride cleanup)                                                          |
 
 ---
 
@@ -130,26 +130,26 @@ Open **http://localhost:5173** in your browser.
 
 All variables live in `backend/.env`. Copy `backend/.env.example` and fill in the values.
 
-| Variable | Required | Description |
-|---|---|---|
-| `DATABASE_URL` | ✅ | PostgreSQL connection string |
-| `JWT_SECRET` | ✅ | Access token signing secret (min 32 chars) |
-| `JWT_REFRESH_SECRET` | ✅ | Refresh token signing secret (min 32 chars) |
-| `JWT_EXPIRES_IN` | ✅ | Access token TTL (default `15m`) |
-| `JWT_REFRESH_EXPIRES_IN` | ✅ | Refresh token TTL (default `7d`) |
-| `RESEND_API_KEY` | ✅ | API key from [resend.com](https://resend.com) |
-| `EMAIL_FROM` | ✅ | Sender address shown in emails |
-| `SMTP_HOST` | optional | Fallback SMTP host (e.g. `smtp.gmail.com`) |
-| `SMTP_PORT` | optional | Fallback SMTP port (e.g. `587`) |
-| `SMTP_USER` | optional | Fallback SMTP user |
-| `SMTP_PASS` | optional | Fallback SMTP password / App Password |
-| `PORT` | optional | Backend port (default `5000`) |
-| `NODE_ENV` | optional | `development` \| `production` |
-| `ALLOWED_DOMAINS` | ✅ | Comma-separated allowed email domains (e.g. `yourcollege.edu`) |
-| `FRONTEND_URL` | ✅ | Frontend origin for CORS (e.g. `http://localhost:5173`) |
-| `RATE_LIMIT_WINDOW_MS` | optional | Rate limit window in ms (default `900000` = 15 min) |
-| `RATE_LIMIT_MAX` | optional | Max requests per window (default `100`) |
-| `OTP_RATE_LIMIT_MAX` | optional | Max OTP requests per window (default `5`) |
+| Variable                 | Required | Description                                                    |
+| ------------------------ | -------- | -------------------------------------------------------------- |
+| `DATABASE_URL`           | ✅       | PostgreSQL connection string                                   |
+| `JWT_SECRET`             | ✅       | Access token signing secret (min 32 chars)                     |
+| `JWT_REFRESH_SECRET`     | ✅       | Refresh token signing secret (min 32 chars)                    |
+| `JWT_EXPIRES_IN`         | ✅       | Access token TTL (default `15m`)                               |
+| `JWT_REFRESH_EXPIRES_IN` | ✅       | Refresh token TTL (default `7d`)                               |
+| `RESEND_API_KEY`         | ✅       | API key from [resend.com](https://resend.com)                  |
+| `EMAIL_FROM`             | ✅       | Sender address shown in emails                                 |
+| `SMTP_HOST`              | optional | Fallback SMTP host (e.g. `smtp.gmail.com`)                     |
+| `SMTP_PORT`              | optional | Fallback SMTP port (e.g. `587`)                                |
+| `SMTP_USER`              | optional | Fallback SMTP user                                             |
+| `SMTP_PASS`              | optional | Fallback SMTP password / App Password                          |
+| `PORT`                   | optional | Backend port (default `5000`)                                  |
+| `NODE_ENV`               | optional | `development` \| `production`                                  |
+| `ALLOWED_DOMAINS`        | ✅       | Comma-separated allowed email domains (e.g. `yourcollege.edu`) |
+| `FRONTEND_URL`           | ✅       | Frontend origin for CORS (e.g. `http://localhost:5173`)        |
+| `RATE_LIMIT_WINDOW_MS`   | optional | Rate limit window in ms (default `900000` = 15 min)            |
+| `RATE_LIMIT_MAX`         | optional | Max requests per window (default `100`)                        |
+| `OTP_RATE_LIMIT_MAX`     | optional | Max OTP requests per window (default `5`)                      |
 
 ---
 
@@ -157,23 +157,23 @@ All variables live in `backend/.env`. Copy `backend/.env.example` and fill in th
 
 ### Backend (`/backend`)
 
-| Command | Description |
-|---|---|
-| `npm run dev` | Start with nodemon (hot reload) |
-| `npm start` | Start in production mode |
-| `npm run prisma:migrate` | Run dev migrations |
-| `npm run prisma:migrate:prod` | Deploy migrations to production |
-| `npm run prisma:generate` | Regenerate Prisma client |
-| `npm run prisma:studio` | Open Prisma Studio GUI |
-| `npm run prisma:reset` | Reset DB and re-run all migrations |
-| `npm run seed` | Seed the database with sample data |
+| Command                       | Description                        |
+| ----------------------------- | ---------------------------------- |
+| `npm run dev`                 | Start with nodemon (hot reload)    |
+| `npm start`                   | Start in production mode           |
+| `npm run prisma:migrate`      | Run dev migrations                 |
+| `npm run prisma:migrate:prod` | Deploy migrations to production    |
+| `npm run prisma:generate`     | Regenerate Prisma client           |
+| `npm run prisma:studio`       | Open Prisma Studio GUI             |
+| `npm run prisma:reset`        | Reset DB and re-run all migrations |
+| `npm run seed`                | Seed the database with sample data |
 
 ### Frontend (`/frontend`)
 
-| Command | Description |
-|---|---|
-| `npm run dev` | Start Vite dev server |
-| `npm run build` | Production build (output to `dist/`) |
+| Command           | Description                          |
+| ----------------- | ------------------------------------ |
+| `npm run dev`     | Start Vite dev server                |
+| `npm run build`   | Production build (output to `dist/`) |
 | `npm run preview` | Preview the production build locally |
 
 ---
@@ -231,6 +231,15 @@ See [`docs/api.md`](docs/api.md) for the complete REST API documentation with re
 1. Set all environment variables in the platform dashboard
 2. Run `npm run prisma:migrate:prod` to deploy schema changes
 3. Start with `npm start`
+
+For Render's sleeping web services, configure an external monitor or a Render
+Cron Job to request `https://<your-backend-domain>/health` every 10 minutes.
+For a Render Cron Job using this repository, set `HEALTH_URL` to that URL and
+use `npm run health:ping` as its start command.
+The in-process 15-minute health job only runs while Node is already running;
+it cannot wake a sleeping instance. Set `HEALTH_ALERT_EMAIL` (or
+`ADMIN_EMAIL`) and `RESEND_API_KEY` or `BREVO_API_KEY` to receive health and
+unregistered-domain notifications.
 
 ### Frontend (e.g. Vercel / Netlify)
 
