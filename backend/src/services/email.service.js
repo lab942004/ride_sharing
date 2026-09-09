@@ -6,20 +6,16 @@
 // Resend is tried first, then Brevo as fallback. Configure at least one of
 // RESEND_API_KEY / BREVO_API_KEY in .env.
 
-const fs = require('node:fs');
-const path = require('node:path');
-
 // NOTE: never hardcode a real/personal email as the fallback here — it leaks
 // personal information into source code/repos. The sender must come from the
 // operator's .env (EMAIL_FROM). If it's unset we fall back to a clearly
 // neutral placeholder; production deployments should always set EMAIL_FROM.
 const FROM = process.env.EMAIL_FROM || 'RideShare <no-reply@rideshares.local>';
 
-// Inline the source logo so email clients do not need to fetch a remote URL.
-const logoPath = path.resolve(__dirname, '../../../frontend/public/logo.png');
-const LOGO_DATA_URI = fs.existsSync(logoPath)
-  ? `data:image/png;base64,${fs.readFileSync(logoPath).toString('base64')}`
-  : null;
+// Public base URL of the site (no trailing slash) — used to embed the site
+// logo into email templates. Set APP_URL in .env, e.g. "https://rideshare.com".
+const APP_URL = (process.env.APP_URL || process.env.FRONTEND_URL || '').replace(/\/+$/, '');
+const LOGO_URL = APP_URL ? `${APP_URL}/icons/icon-192.png` : null;
 
 // Support/admin address shown in the frontend footer — used for domain
 // request notifications. Override with ADMIN_EMAIL / HEALTH_ALERT_EMAIL.
@@ -28,12 +24,12 @@ const SUPPORT_EMAIL = (process.env.ADMIN_EMAIL || process.env.HEALTH_ALERT_EMAIL
   .map((email) => email.trim())
   .filter(Boolean);
 
-// Shared branded email header (logo + wordmark). Falls back to text-only if
-// the source asset is unavailable in the deployment.
+// Shared branded email header (logo + wordmark). Falls back to text-only
+// when APP_URL isn't configured (email clients block remote images anyway).
 const brandHeader = (tagline) => `
   <div class="header">
-    ${LOGO_DATA_URI ? `<img src="${LOGO_DATA_URI}" alt="RideShare logo" width="64" height="64" style="border-radius:50%;margin-bottom:8px;object-fit:cover" />` : ''}
-    <h1>RideShare</h1>
+    ${LOGO_URL ? `<img src="${LOGO_URL}" alt="RideShare logo" width="48" height="48" style="border-radius:12px;margin-bottom:8px" />` : ''}
+    <h1>🚗 RideShare</h1>
     <p>${tagline}</p>
   </div>`;
 

@@ -113,34 +113,26 @@ export default function CreateRide() {
                 biasLocation={fromLocation}
               />
 
-              <label htmlFor="ride-date" className="block text-sm font-semibold text-charcoal">
-                Date
-                <input
-                  id="ride-date"
-                  name="date"
-                  type="date"
-                  placeholder="Date"
-                  value={form.date}
-                  onChange={handleChange}
-                  className={`${inputCls} mt-1.5`}
-                  min={today}
-                  max={maxDate}
-                  required
-                />
-              </label>
-              <label htmlFor="ride-time" className="block text-sm font-semibold text-charcoal">
-                Time
-                <input
-                  id="ride-time"
-                  name="time"
-                  type="time"
-                  placeholder="Time"
-                  value={form.time}
-                  onChange={handleChange}
-                  className={`${inputCls} mt-1.5`}
-                  required
-                />
-              </label>
+              <input
+                name="date"
+                type="date"
+                placeholder="Date"
+                value={form.date}
+                onChange={handleChange}
+                className={inputCls}
+                min={today}
+                max={maxDate}
+                required
+              />
+              <input
+                name="time"
+                type="time"
+                placeholder="Time"
+                value={form.time}
+                onChange={handleChange}
+                className={inputCls}
+                required
+              />
               <select
                 name="vehicleType"
                 value={form.vehicleType}

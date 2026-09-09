@@ -9,7 +9,7 @@
 // The service worker is registered from src/main.jsx in PRODUCTION builds only,
 // so the caching below never interferes with the Vite dev server (HMR).
 
-const CACHE_VERSION = 'rideshares-v2';
+const CACHE_VERSION = 'rideshares-v1';
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -21,7 +21,8 @@ const PRECACHE_URLS = [
   '/offline.html',
   '/manifest.webmanifest',
   '/favicon.svg',
-  '/logo.png',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
 ];
 
 const isDev = () =>
@@ -114,8 +115,8 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
-      icon: '/logo.png',
-      badge: '/logo.png',
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
       data: { url: data.url || '/' },
     })
   )
