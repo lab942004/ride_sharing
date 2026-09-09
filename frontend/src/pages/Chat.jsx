@@ -137,7 +137,10 @@ export default function Chat() {
     // bottom — otherwise reading earlier history would get yanked to the end
     // every time a new message or page loads.
     if (stickToBottomRef.current) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+      const panel = messagesRef.current
+      if (panel) {
+        panel.scrollTo({ top: panel.scrollHeight, behavior: 'smooth' })
+      }
     }
   }, [messages])
 
@@ -396,7 +399,7 @@ export default function Chat() {
           </div>
 
           {/* ── Chat UI ── */}
-          <div className="mt-6 w-full max-w-full md:max-w-4xl mx-auto bg-white rounded-3xl shadow-card border border-gray-100 overflow-hidden">
+          <div className="mt-6 w-full max-w-full md:max-w-4xl mx-auto bg-white rounded-3xl shadow-card border border-gray-100 overflow-hidden min-h-0">
             {loading ? (
               <div className="flex justify-center items-center h-96">
                 <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
@@ -408,9 +411,9 @@ export default function Chat() {
                 <p className="text-sm mt-1">Accept a ride request to start chatting</p>
               </div>
             ) : (
-              <div className="flex flex-col md:flex-row min-h-[calc(100dvh-260px)] sm:min-h-[460px] md:h-[560px] md:min-h-[500px] md:max-h-[560px]">
+              <div className="flex flex-col md:flex-row h-[calc(100dvh-220px)] min-h-[420px] max-h-[720px] md:h-[560px] md:min-h-[500px] md:max-h-[560px]">
                 {/* Sidebar / chat list */}
-                <div className={`w-full md:w-64 h-full border-b border-gray-100 md:border-b-0 md:border-r overflow-y-auto p-3 flex-shrink-0 bg-amber-50/95 shadow-none md:shadow-none ${mobileMode === 'list' ? 'block' : 'hidden md:block'}`}>
+                <div className={`w-full md:w-64 h-full min-h-0 border-b border-gray-100 md:border-b-0 md:border-r overflow-y-auto p-3 flex-shrink-0 bg-amber-50/95 shadow-none md:shadow-none ${mobileMode === 'list' ? 'block' : 'hidden md:block'}`}>
                   <div className="flex items-center justify-between mb-3 md:hidden">
                     <p className="text-sm font-semibold text-charcoal uppercase tracking-wide">Chats</p>
                     <button
@@ -438,7 +441,7 @@ export default function Chat() {
                 </div>
 
                 {/* Messages panel */}
-                <div className={`flex-1 flex flex-col min-w-0 relative md:z-10 ${mobileMode === 'list' ? 'hidden md:flex' : 'flex'}`}>
+                <div className={`flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden relative md:z-10 ${mobileMode === 'list' ? 'hidden md:flex' : 'flex'}`}>
                   {/* Chat header */}
                   {activeReq && (
                     <div className="px-4 py-3 border-b border-gray-100 bg-amber-50/40">
@@ -522,7 +525,7 @@ export default function Chat() {
                   <div
                     ref={messagesRef}
                     onScroll={handleMessageScroll}
-                    className="chat-scroll flex-1 overflow-y-auto p-3 md:p-4 flex flex-col gap-2 md:gap-3 touch-pan-y max-h-full"
+                    className="chat-scroll flex-1 min-h-0 overflow-y-auto overscroll-contain p-3 md:p-4 flex flex-col gap-2 md:gap-3 touch-pan-y"
                     style={{ WebkitOverflowScrolling: 'touch' }}
                   >
                     {hasMore && (
